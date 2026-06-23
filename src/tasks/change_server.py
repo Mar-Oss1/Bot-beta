@@ -1,6 +1,7 @@
 import time
 import os
 
+
 class ChangeServer:
     def __init__(self, device, vision):
         self.device = device
@@ -9,9 +10,9 @@ class ChangeServer:
     def execute(self, server_label_template):
         """
         Ejecuta la secuencia para cambiar de servidor desde la pantalla de título.
-        :param server_label_template: Ruta a la imagen de la etiqueta del server (ej. "templates/label_sa6.png")
+        :param server_label_template: Ruta a la imagen de la etiqueta del server
         """
-        print(f"\n[🌐] Iniciando cambio de servidor buscando: {server_label_template}")
+        print(f"\n[🌐] Iniciando cambio/verificación de servidor buscando: {server_label_template}")
 
         # 1. Tocar el botón de Servidor en la pantalla de inicio
         screen = self.device.screenshot()
@@ -47,15 +48,15 @@ class ChangeServer:
         self.device.tap(pos_label[0], pos_label[1])
         time.sleep(2)
 
-        # 5. Confirmar el cambio con el botón OK (¡Doble confirmación!)
-        print(" [>] Buscando primera confirmación de servidor...")
+        # 5. Confirmar el cambio o detectar si YA estamos en el servidor
+        print(" [>] Buscando confirmación de servidor...")
         screen = self.device.screenshot()
         pos_ok_1 = self.vision.find_template(screen, "templates/btn_ok_restore.png", threshold=0.75)
 
         if pos_ok_1:
             print("  [>] Primer 'OK' encontrado. Presionando...")
             self.device.tap(pos_ok_1[0], pos_ok_1[1])
-            time.sleep(2)  # Esperamos a que la segunda ventana de advertencia termine de animarse
+            time.sleep(2)  # Esperamos a ver qué pasa después del primer clic
 
             print(" [>] Buscando segunda confirmación...")
             screen = self.device.screenshot()
@@ -65,20 +66,39 @@ class ChangeServer:
                 print("  [>] Segundo 'OK' encontrado. Presionando...")
                 self.device.tap(pos_ok_2[0], pos_ok_2[1])
                 print(" [✅] ¡Cambio de servidor exitoso! Esperando a que el juego vuelva a la pantalla de título...")
-                time.sleep(12)  # Tiempo vital para que el juego haga el "Return to Title"
+                time.sleep(12)
                 return True
             else:
-                print(" ❌ Encontré el primer OK, pero el segundo no apareció. Posible atasco.")
-                return False
+                # MAGIA REPARADA: Si solo hay 1 OK, es el aviso de "Ya estás aquí"
+                print(" [i] Solo apareció un 'OK'. Ya estamos en este servidor.")
+
+                # Buscamos si el menú de servidores quedó abierto para cerrarlo
+                screen = self.device.screenshot()
+                pos_back = self.vision.find_template(screen, "templates/btn_back.png", threshold=0.75)
+                if pos_back:
+                    print(" [✅] El menú sigue abierto. Cerrando menú...")
+                    self.device.tap(pos_back[0], pos_back[1])
+                    time.sleep(3)
+                else:
+                    print(" [✅] El menú se cerró solo.")
+                return True
         else:
-            print(" ❌ No apareció la primera ventana de confirmación.")
-            return False
+            # Por si acaso el juego algún día no lanza ningún aviso
+            print(" [i] No apareció ninguna advertencia.")
+            pos_back = self.vision.find_template(screen, "templates/btn_back.png", threshold=0.75)
+            if pos_back:
+                print(" [✅] El menú sigue abierto. Ya estamos en el servidor correcto. Cerrando menú...")
+                self.device.tap(pos_back[0], pos_back[1])
+                time.sleep(3)
+                return True
+            else:
+                print(" [✅] El menú se cerró solo. Ya estamos en el servidor correcto.")
+                return True
 
 
 if __name__ == "__main__":
     import sys
 
-    # Ajustamos la ruta para que encuentre la carpeta 'core'
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     from core.device import Device
@@ -91,10 +111,7 @@ if __name__ == "__main__":
     if dev.connect():
         print(" [🔌] Dispositivo conectado.")
         cambiador = ChangeServer(dev, vis)
-
-        # OJO: Cambia el nombre de la plantilla por el que quieras probar (label_sa3.png o label_sa6.png)
-        plantilla_prueba = "templates/label_sa6.png"
-
+        plantilla_prueba = "templates/label_sa-6.png"
         cambiador.execute(plantilla_prueba)
     else:
         print(" ❌ Error al conectar con el dispositivo ADB.")
