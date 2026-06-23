@@ -1,0 +1,173 @@
+{
+  "accounts": [
+    {
+      "id": 1,
+      "name": "Zeus",
+      "serial": "BDBB6RNABXZQ",
+      "enabled": false,
+      "priority": 1,
+      "progress": {
+        "2026-06-23": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-23 01:54",
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 2,
+      "name": "No me acuerdo",
+      "serial": "PW42MM9CLQ9E",
+      "enabled": false,
+      "priority": 2,
+      "progress": {
+        "2026-06-23": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-23 01:59",
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 3,
+      "name": "Cuenta Beth (Multi-Server)",
+      "serial": "",
+      "enabled": true,
+      "priority": 3,
+      "progress": {
+        "2026-06-23": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-23 13:33",
+      "notes": "Tiene personajes en SA-3 y SA-6",
+      "servers": [
+        {
+          "server_id": "SA-3"
+        },
+        {
+          "server_id": "SA-6"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "ASRA",
+      "serial": "KTD2LRPHARZE",
+      "enabled": false,
+      "priority": 4,
+      "progress": {},
+      "last_run": null,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 5,
+      "name": "Osiris",
+      "serial": "WQKRZ9ZAQGXE",
+      "enabled": false,
+      "priority": 5,
+      "progress": {},
+      "last_run": null,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 6,
+      "name": "Somnial",
+      "serial": "M9C5HHMF2Y2D",
+      "enabled": false,
+      "priority": 6,
+      "progress": {},
+      "last_run": null,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 7,
+      "name": "KuroNeko",
+      "serial": "H0MLNHWCTG7W",
+      "enabled": false,
+      "priority": 7,
+      "progress": {},
+      "last_run": null,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 8,
+      "name": "Diferoku",
+      "serial": "FAY50MC5ACY0",
+      "enabled": false,
+      "priority": 8,
+      "progress": {},
+      "last_run": null,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 9,
+      "name": "Mini beth",
+      "serial": "JD6C633CGJHT",
+      "enabled": true,
+      "priority": 9,
+      "progress": {
+        "2026-06-23": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-23 13:29",
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 10,
+      "name": "Yasuke",
+      "serial": "1JFBFJXWWA30",
+      "enabled": false,
+      "priority": 10,
+      "progress": {},
+      "last_run": null,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 11,
+      "name": "BENKEI",
+      "serial": "ggnk6ex67cme",
+      "enabled": true,
+      "priority": 11,
+      "progress": {
+        "2026-06-23": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-23 13:30",
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 12,
+      "name": "YUKIMURA",
+      "serial": "zy796k93rrwm",
+      "enabled": true,
+      "priority": 12,
+      "progress": {
+        "2026-06-23": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-23 11:50",
+      "notes": "",
+      "servers": []
+    }
+  ]
+}
