@@ -73,11 +73,35 @@ class Startup:
         return False
 
     def handle_comeback_bonus(self):
-        # (Tu lógica de handle_comeback_bonus se queda igual)
-        screen = self.device.screenshot()
-        pos_claim = self.vision.find_template(screen, "templates/btn_claim_comeback.png", threshold=0.8)
-        if pos_claim:
-            print(" [🎁] ¡Evento de Regreso detectado!...")
-            # ... (resto de tu lógica de clic y back) ...
+        eventos_reclamados = False
+
+        # Bucle infinito para aspirar TODAS las recompensas de regreso
+        while True:
+            screen = self.device.screenshot()
+            pos_claim = self.vision.find_template(screen, "templates/btn_claim_comeback.png", threshold=0.8)
+
+            if pos_claim:
+                print("  [🎁] ¡Evento de Regreso detectado! Dándole clic a Reclamar...")
+                self.device.tap(pos_claim[0], pos_claim[1])
+                time.sleep(3)  # Esperamos a que salga la pantalla de loot
+
+                # Toques en la esquina superior izquierda (100, 100) para no tocar items
+                print("  [🎁] Tocando la esquina para cerrar el loot...")
+                self.device.tap(100, 100)
+                time.sleep(1.5)
+                self.device.tap(100, 100)  # Doble toque por seguridad
+                time.sleep(2)
+
+                eventos_reclamados = True
+            else:
+                # Si ya no hay botones de claim en la pantalla, rompemos el bucle
+                break
+
+        # Si logramos reclamar al menos una cosa, salimos del menú de Regreso
+        if eventos_reclamados:
+            print("  [🎁] Todas las recompensas reclamadas. Saliendo del menú...")
+            self.device.d.press("back")
+            time.sleep(3)
             return True
+
         return False

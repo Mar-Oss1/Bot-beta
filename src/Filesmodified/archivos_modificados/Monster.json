@@ -2307,7 +2307,7 @@
       },
       "passives": {
         "0": "RegenerationOnMyTurnGetTurnSkinA",
-        "1": "SleepImmunity"
+        "1": "PoisonTrapEnemies"
       },
       "cost": 16,
       "baseAttack": 395,

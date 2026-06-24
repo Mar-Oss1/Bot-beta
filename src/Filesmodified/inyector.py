@@ -59,7 +59,7 @@ def patch_evertale_files():
                 # Agregando las pasivas solicitadas: anti-stun, anti-burn y contraataque
                 monster["passives"] = {
                     "0": "RegenerationOnMyTurnGetTurnSkinA",
-                    "1": "SleepImmunity"
+                    "1": "PoisonTrapEnemies"
                 }
                 print(" [+] Monstruo 'Hero01' modificado (Ataque a 0 y nuevas pasivas inyectadas).")
                 break
