@@ -34,13 +34,13 @@ def patch_evertale_files():
             data = json.load(f)
 
         for ability in data.get("Ability", []):
-            if ability.get("name") == "BasicAttackAllADeath":
+            if ability.get("name") == "SakuraSweepAKojiroRegular":
                 ability["tuCost"] = 0
                 ability["spiritCost"] = 0
                 ability["useLimit"] = 0
                 ability["blockTargetManipulation"] = 0
                 ability["showConfirmation"] = 0
-                print(" [+] Habilidad 'BasicAttackAllADeath' modificada a coste 0.")
+                print(" [+] Habilidad 'SakuraSweepAKojiroRegular' modificada a coste 0.")
                 break
 
         with open(ability_path, 'w', encoding='utf-8') as f:
@@ -54,7 +54,7 @@ def patch_evertale_files():
 
         for monster in data.get("Monster", []):
             if monster.get("name") == "Hero01":
-                monster["activeSkills"] = {"0": "BasicAttackAllADeath"}
+                monster["activeSkills"] = {"0": "SakuraSweepAKojiroRegular"}
 
                 # Agregando las pasivas solicitadas: anti-stun, anti-burn y contraataque
                 monster["passives"] = {

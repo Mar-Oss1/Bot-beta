@@ -24688,11 +24688,12 @@
         5
       ],
       "config": "DoubleStrikeAKojiroRegular",
-      "tuCost": 100,
+      "tuCost": 0,
       "useLimit": 0,
       "spiritGain": 2,
       "blockTargetManipulation": 0,
-      "showConfirmation": 0
+      "showConfirmation": 0,
+      "spiritCost": 0
     },
     {
       "name": "SakuraSweepAKojiroRegular",
@@ -24704,9 +24705,9 @@
         4
       ],
       "config": "SakuraSweepAKojiroRegular",
-      "tuCost": 100,
+      "tuCost": 0,
       "useLimit": 0,
-      "spiritCost": 2,
+      "spiritCost": 0,
       "blockTargetManipulation": 0,
       "showConfirmation": 0
     },
