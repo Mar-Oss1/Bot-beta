@@ -35,7 +35,7 @@
     {
       "id": 3,
       "name": "Cuenta Beth (Multi-Server)",
-      "serial": "",
+      "serial": "B5DF7BWQLEYM",
       "enabled": true,
       "priority": 3,
       "progress": {
@@ -44,7 +44,7 @@
           "login_bonus": true
         }
       },
-      "last_run": "2026-06-23 13:33",
+      "last_run": "2026-06-23 17:13",
       "notes": "Tiene personajes en SA-3 y SA-6",
       "servers": [
         {
@@ -122,7 +122,7 @@
           "login_bonus": true
         }
       },
-      "last_run": "2026-06-23 13:29",
+      "last_run": "2026-06-23 17:14",
       "notes": "",
       "servers": []
     },
@@ -149,7 +149,7 @@
           "login_bonus": true
         }
       },
-      "last_run": "2026-06-23 13:30",
+      "last_run": "2026-06-23 17:15",
       "notes": "",
       "servers": []
     },
@@ -165,7 +165,7 @@
           "login_bonus": true
         }
       },
-      "last_run": "2026-06-23 11:50",
+      "last_run": "2026-06-23 17:16",
       "notes": "",
       "servers": []
     }

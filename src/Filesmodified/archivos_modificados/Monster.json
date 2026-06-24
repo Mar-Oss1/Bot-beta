@@ -2303,11 +2303,11 @@
       "family": "Hero",
       "class": "Monster",
       "activeSkills": {
-        "0": "BasicAttackAllADeath"
+        "0": "SakuraSweepAKojiroRegular"
       },
       "passives": {
         "0": "RegenerationOnMyTurnGetTurnSkinA",
-        "1": "SleepImmunity"
+        "1": "PoisonTrapEnemies"
       },
       "cost": 16,
       "baseAttack": 395,

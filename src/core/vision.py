@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import pytesseract
-from PIL import Image
 import os
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
@@ -52,6 +51,7 @@ class Vision:
             return (center_x, center_y)
         else:
             return None
+
     def find_any(self, screenshot, template_paths):
         """
         Busca cualquiera de una lista de templates.
@@ -88,3 +88,41 @@ class Vision:
                 print(f"📍 Pantalla detectada: {screen_name}")
                 return screen_name
         return "unknown"
+
+    def find_all_templates(self, screenshot, template_path, threshold=0.8):
+        """
+        Busca todas las ocurrencias y agrupa las detecciones cercanas
+        para evitar duplicados redundantes.
+        """
+        import cv2
+        import numpy as np
+
+        screen_cv = self.pil_to_cv2(screenshot)
+        screen_gray = cv2.cvtColor(screen_cv, cv2.COLOR_BGR2GRAY)
+
+        ruta_absoluta = os.path.join(PROJECT_ROOT, template_path)
+        img_template = cv2.imread(ruta_absoluta, 0)
+
+        if img_template is None: return []
+
+        w, h = img_template.shape[::-1]
+        res = cv2.matchTemplate(screen_gray, img_template, cv2.TM_CCOEFF_NORMED)
+
+        # Obtener ubicaciones donde el valor >= threshold
+        loc = np.where(res >= threshold)
+
+        # Crear rectángulos [x, y, w, h] para cada detección
+        rects = []
+        for pt in zip(*loc[::-1]):
+            rects.append([int(pt[0]), int(pt[1]), w, h])
+
+        # Agrupar rectángulos cercanos (groupThreshold=1 significa que requiere 1 detección,
+        # eps=0.2 es el margen de error para agrupar)
+        rects, _ = cv2.groupRectangles(rects, groupThreshold=1, eps=0.2)
+
+        # Retornar los centros de los rectángulos agrupados (x, y)
+        centers = []
+        for (x, y, w, h) in rects:
+            centers.append((x + w // 2, y + h // 2))
+
+        return centers

@@ -1,6 +1,6 @@
 {
   "Version": 23,
-  "Time": 1779677558,
+  "Time": 1781859415,
   "Equipment": [
     {
       "name": "Armor01",
@@ -1269,6 +1269,18 @@
       "flatAttack": 2056,
       "flatMaxHp": 12100,
       "flatSpeed": 21,
+      "visible": 1
+    },
+    {
+      "name": "JeanneDress01",
+      "family": "JeanneDress01",
+      "class": "Equipment",
+      "accessoryStars": 6,
+      "secure": 1,
+      "bundleNumber": 1,
+      "flatAttack": 1930,
+      "flatMaxHp": 12690,
+      "flatSpeed": 5,
       "visible": 1
     }
   ]

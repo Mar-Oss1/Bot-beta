@@ -1,6 +1,6 @@
 {
   "Version": 23,
-  "Time": 1780382015,
+  "Time": 1781859397,
   "Ability": [
     {
       "name": "SkipTurn",
@@ -2923,9 +2923,9 @@
       "class": "Ability",
       "abilityScalor": 0,
       "config": "BasicAttackAllADeath",
-      "tuCost": 0,
+      "tuCost": 250,
       "useLimit": 0,
-      "spiritCost": 0,
+      "spiritCost": 2,
       "blockTargetManipulation": 0,
       "showConfirmation": 0
     },
@@ -24704,9 +24704,9 @@
         4
       ],
       "config": "SakuraSweepAKojiroRegular",
-      "tuCost": 100,
+      "tuCost": 0,
       "useLimit": 0,
-      "spiritCost": 2,
+      "spiritCost": 0,
       "blockTargetManipulation": 0,
       "showConfirmation": 0
     },
@@ -29764,6 +29764,161 @@
       "tuCost": 25,
       "useLimit": 1,
       "spiritGain": 4,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackAJeanneFusionBoss",
+      "class": "Ability",
+      "abilityScalor": 2,
+      "conditionalAbilityScalors": [
+        5,
+        8
+      ],
+      "config": "SingleAttackAJeanneFusionBoss",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllyBuffAJeanneFusionBoss",
+      "class": "Ability",
+      "config": "AllyBuffAJeanneFusionBoss",
+      "tuCost": 2,
+      "useLimit": 0,
+      "spiritGain": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "EnemyBuffAJeanneFusionBoss01",
+      "class": "Ability",
+      "config": "EnemyBuffAJeanneFusionBoss01",
+      "tuCost": 50,
+      "useLimit": 1,
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "EnemyBuffAJeanneFusionBoss03",
+      "class": "Ability",
+      "config": "EnemyBuffAJeanneFusionBoss03",
+      "tuCost": 50,
+      "useLimit": 1,
+      "nameKey": "EnemyBuffAJeanneFusionBoss01",
+      "descriptionKey": "EnemyBuffAJeanneFusionBoss01",
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllAttackAJeanneFusionBoss",
+      "class": "Ability",
+      "abilityScalor": 6,
+      "config": "AllAttackAJeanneFusionBoss",
+      "tuCost": 75,
+      "useLimit": 0,
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "DoubleAttackABasiliskRegularBoss",
+      "class": "Ability",
+      "abilityScalor": 4,
+      "conditionalAbilityScalors": [
+        6.5,
+        9
+      ],
+      "config": "DoubleAttackABasiliskRegularBoss",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackABasiliskRegularBoss",
+      "class": "Ability",
+      "abilityScalor": 7,
+      "conditionalAbilityScalors": [
+        11
+      ],
+      "config": "SingleAttackABasiliskRegularBoss",
+      "tuCost": 75,
+      "useLimit": 0,
+      "spiritCost": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllyAndEnemyBuffABasiliskRegularBoss",
+      "class": "Ability",
+      "config": "AllyAndEnemyBuffABasiliskRegularBoss",
+      "tuCost": 9,
+      "useLimit": 0,
+      "spiritGain": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "EnemyBuffABasiliskRegularBoss",
+      "class": "Ability",
+      "config": "EnemyBuffABasiliskRegularBoss",
+      "tuCost": 0,
+      "useLimit": 5,
+      "spiritCost": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackAManchesterRegularBoss",
+      "class": "Ability",
+      "abilityScalor": 3,
+      "conditionalAbilityScalors": [
+        7
+      ],
+      "config": "SingleAttackAManchesterRegularBoss",
+      "tuCost": 100,
+      "useLimit": 0,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllyAndEnemyBuffAManchesterRegularBoss",
+      "class": "Ability",
+      "config": "AllyAndEnemyBuffAManchesterRegularBoss",
+      "tuCost": 1,
+      "useLimit": 10,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SelfBuffAManchesterRegularBoss",
+      "class": "Ability",
+      "config": "SelfBuffAManchesterRegularBoss",
+      "tuCost": 50,
+      "useLimit": 3,
+      "spiritGain": 0,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllAttackAManchesterRegularBoss",
+      "class": "Ability",
+      "abilityScalor": 4,
+      "conditionalAbilityScalors": [
+        9
+      ],
+      "config": "AllAttackAManchesterRegularBoss",
+      "tuCost": 100,
+      "useLimit": 0,
+      "spiritCost": 3,
       "blockTargetManipulation": 0,
       "showConfirmation": 0
     }
