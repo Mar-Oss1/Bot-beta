@@ -2307,7 +2307,7 @@
       },
       "passives": {
         "0": "RegenerationOnMyTurnGetTurnSkinA",
-        "1": "PoisonTrapEnemies"
+        "1": "StunImmunity"
       },
       "cost": 16,
       "baseAttack": 395,
@@ -10867,16 +10867,12 @@
       "leaderBuff": "AttackAndHPUp5Fire",
       "leaderBuffCondition": "IsFire",
       "activeSkills": {
-        "0": "GainAttackSingleA",
-        "1": "BasicAttackAllA2Fire",
-        "2": "BurnSelfA",
-        "3": "BurnBlastA"
+        "0": "SakuraSweepAKojiroRegular"
       },
       "passives": {
-        "2": "AttackUpTargetEquippedHammerLv2",
-        "3": "PlusHPBoostLv2",
-        "4": "PlusAttackBoostLv2",
-        "5": "AddWeaponPrefMace"
+        "0": "RegenerationOnMyTurnGetTurnSkinA",
+        "1": "StunImmunity",
+        "2": "SleepImmunity"
       },
       "cost": 23,
       "baseAttack": 763,

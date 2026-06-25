@@ -24708,7 +24708,8 @@
       "useLimit": 0,
       "spiritCost": 0,
       "blockTargetManipulation": 0,
-      "showConfirmation": 0
+      "showConfirmation": 0,
+      "spiritGain": 10
     },
     {
       "name": "MegaSelfBuffAKojiroRegular",

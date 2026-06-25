@@ -2,64 +2,45 @@
   "accounts": [
     {
       "id": 1,
-      "name": "Zeus",
-      "serial": "BDBB6RNABXZQ",
-      "enabled": false,
+      "name": "Mcbeth/Beth",
+      "serial": "B5DF7BWQLEYM",
+      "enabled": true,
       "priority": 1,
-      "progress": {
-        "2026-06-23": {
-          "daily_missions": true,
-          "login_bonus": true
-        }
-      },
-      "last_run": "2026-06-23 01:54",
-      "notes": "",
-      "servers": []
+      "progress": {},
+      "last_run": null,
+      "notes": "Multi-server",
+      "servers": [
+        { "server_id": "SA-3" },
+        { "server_id": "SA-6" }
+      ]
     },
     {
       "id": 2,
-      "name": "No me acuerdo",
-      "serial": "PW42MM9CLQ9E",
-      "enabled": false,
+      "name": "Mini Beth",
+      "serial": "JD6C633CGJHT",
+      "enabled": true,
       "priority": 2,
-      "progress": {
-        "2026-06-23": {
-          "daily_missions": true,
-          "login_bonus": true
-        }
-      },
-      "last_run": "2026-06-23 01:59",
+      "progress": {},
+      "last_run": null,
       "notes": "",
       "servers": []
     },
     {
       "id": 3,
-      "name": "Cuenta Beth (Multi-Server)",
-      "serial": "B5DF7BWQLEYM",
+      "name": "BENKEI",
+      "serial": "ggnk6ex67cme",
       "enabled": true,
       "priority": 3,
-      "progress": {
-        "2026-06-23": {
-          "daily_missions": true,
-          "login_bonus": true
-        }
-      },
-      "last_run": "2026-06-23 17:13",
-      "notes": "Tiene personajes en SA-3 y SA-6",
-      "servers": [
-        {
-          "server_id": "SA-3"
-        },
-        {
-          "server_id": "SA-6"
-        }
-      ]
+      "progress": {},
+      "last_run": null,
+      "notes": "",
+      "servers": []
     },
     {
       "id": 4,
-      "name": "ASRA",
-      "serial": "KTD2LRPHARZE",
-      "enabled": false,
+      "name": "Yukimura",
+      "serial": "zy796k93rrwm",
+      "enabled": true,
       "priority": 4,
       "progress": {},
       "last_run": null,
@@ -68,20 +49,23 @@
     },
     {
       "id": 5,
-      "name": "Osiris",
-      "serial": "WQKRZ9ZAQGXE",
-      "enabled": false,
+      "name": "Jiren / sami",
+      "serial": "HRBZG387V5GN",
+      "enabled": true,
       "priority": 5,
       "progress": {},
       "last_run": null,
-      "notes": "",
-      "servers": []
+      "notes": "Multi-server",
+      "servers": [
+        { "server_id": "SA-3" },
+        { "server_id": "SA-6" }
+      ]
     },
     {
       "id": 6,
-      "name": "Somnial",
-      "serial": "M9C5HHMF2Y2D",
-      "enabled": false,
+      "name": "Link123",
+      "serial": "PNXZDR77HKY7",
+      "enabled": true,
       "priority": 6,
       "progress": {},
       "last_run": null,
@@ -90,9 +74,9 @@
     },
     {
       "id": 7,
-      "name": "KuroNeko",
-      "serial": "H0MLNHWCTG7W",
-      "enabled": false,
+      "name": "Omega123",
+      "serial": "KR3Z2PGMDHXM",
+      "enabled": true,
       "priority": 7,
       "progress": {},
       "last_run": null,
@@ -101,9 +85,9 @@
     },
     {
       "id": 8,
-      "name": "Diferoku",
-      "serial": "FAY50MC5ACY0",
-      "enabled": false,
+      "name": "ASRA",
+      "serial": "KTD2LRPHARZE",
+      "enabled": true,
       "priority": 8,
       "progress": {},
       "last_run": null,
@@ -112,25 +96,20 @@
     },
     {
       "id": 9,
-      "name": "Mini beth",
-      "serial": "JD6C633CGJHT",
+      "name": "Somnial",
+      "serial": "M9C5HHMF2Y2D",
       "enabled": true,
       "priority": 9,
-      "progress": {
-        "2026-06-23": {
-          "daily_missions": true,
-          "login_bonus": true
-        }
-      },
-      "last_run": "2026-06-23 17:14",
+      "progress": {},
+      "last_run": null,
       "notes": "",
       "servers": []
     },
     {
       "id": 10,
-      "name": "Yasuke",
-      "serial": "1JFBFJXWWA30",
-      "enabled": false,
+      "name": "KuroNeko",
+      "serial": "H0MLNHWCTG7W",
+      "enabled": true,
       "priority": 10,
       "progress": {},
       "last_run": null,
@@ -139,33 +118,12 @@
     },
     {
       "id": 11,
-      "name": "BENKEI",
-      "serial": "ggnk6ex67cme",
+      "name": "Diferoku",
+      "serial": "FAY50MC5ACY0",
       "enabled": true,
       "priority": 11,
-      "progress": {
-        "2026-06-23": {
-          "daily_missions": true,
-          "login_bonus": true
-        }
-      },
-      "last_run": "2026-06-23 17:15",
-      "notes": "",
-      "servers": []
-    },
-    {
-      "id": 12,
-      "name": "YUKIMURA",
-      "serial": "zy796k93rrwm",
-      "enabled": true,
-      "priority": 12,
-      "progress": {
-        "2026-06-23": {
-          "daily_missions": true,
-          "login_bonus": true
-        }
-      },
-      "last_run": "2026-06-23 17:16",
+      "progress": {},
+      "last_run": null,
       "notes": "",
       "servers": []
     }
