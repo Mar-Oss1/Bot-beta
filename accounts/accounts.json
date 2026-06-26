@@ -4,21 +4,25 @@
       "id": 1,
       "name": "Mcbeth/Beth",
       "serial": "B5DF7BWQLEYM",
-      "enabled": true,
+      "enabled": false,
       "priority": 1,
       "progress": {},
       "last_run": null,
       "notes": "Multi-server",
       "servers": [
-        { "server_id": "SA-3" },
-        { "server_id": "SA-6" }
+        {
+          "server_id": "SA-3"
+        },
+        {
+          "server_id": "SA-6"
+        }
       ]
     },
     {
       "id": 2,
       "name": "Mini Beth",
       "serial": "JD6C633CGJHT",
-      "enabled": true,
+      "enabled": false,
       "priority": 2,
       "progress": {},
       "last_run": null,
@@ -29,10 +33,15 @@
       "id": 3,
       "name": "BENKEI",
       "serial": "ggnk6ex67cme",
-      "enabled": true,
+      "enabled": false,
       "priority": 3,
-      "progress": {},
-      "last_run": null,
+      "progress": {
+        "2026-06-25": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-25 21:34",
       "notes": "",
       "servers": []
     },
@@ -40,7 +49,7 @@
       "id": 4,
       "name": "Yukimura",
       "serial": "zy796k93rrwm",
-      "enabled": true,
+      "enabled": false,
       "priority": 4,
       "progress": {},
       "last_run": null,
@@ -51,21 +60,25 @@
       "id": 5,
       "name": "Jiren / sami",
       "serial": "HRBZG387V5GN",
-      "enabled": true,
+      "enabled": false,
       "priority": 5,
       "progress": {},
       "last_run": null,
       "notes": "Multi-server",
       "servers": [
-        { "server_id": "SA-3" },
-        { "server_id": "SA-6" }
+        {
+          "server_id": "SA-3"
+        },
+        {
+          "server_id": "SA-6"
+        }
       ]
     },
     {
       "id": 6,
       "name": "Link123",
       "serial": "PNXZDR77HKY7",
-      "enabled": true,
+      "enabled": false,
       "priority": 6,
       "progress": {},
       "last_run": null,
@@ -76,7 +89,7 @@
       "id": 7,
       "name": "Omega123",
       "serial": "KR3Z2PGMDHXM",
-      "enabled": true,
+      "enabled": false,
       "priority": 7,
       "progress": {},
       "last_run": null,
@@ -87,7 +100,7 @@
       "id": 8,
       "name": "ASRA",
       "serial": "KTD2LRPHARZE",
-      "enabled": true,
+      "enabled": false,
       "priority": 8,
       "progress": {},
       "last_run": null,
@@ -98,7 +111,7 @@
       "id": 9,
       "name": "Somnial",
       "serial": "M9C5HHMF2Y2D",
-      "enabled": true,
+      "enabled": false,
       "priority": 9,
       "progress": {},
       "last_run": null,
