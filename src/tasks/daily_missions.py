@@ -33,23 +33,20 @@ class DailyMissions:
             time.sleep(3)
 
     def handle_battle_sequence(self):
-        # === NUEVA SECUENCIA: Validar empate ANTES de que cargue la batalla ===
-        time.sleep(2)
+        time.sleep(4)
         screen = self.device.screenshot()
         pos_draw = self.vision.find_template(screen, "templates/Draw.png", threshold=0.8)
 
         if pos_draw:
             print("   [⚖️] Se detectó un EMPATE (Draw) instantáneo.")
-            pos_ok = self.vision.find_template(screen, "templates/btn_skip_ok.png", threshold=0.8)
+            pos_ok = self.vision.find_template(screen, "templates/btn_draw_ok.png", threshold=0.8)
             if pos_ok:
                 self.device.tap(int(pos_ok[0]), int(pos_ok[1]))
-            else:
-                self.device.tap(int(pos_draw[0]), int(pos_draw[1]))
             time.sleep(2)
             return "draw"
 
         print("   [⚔️] Intentando saltar/acelerar batalla...")
-        time.sleep(2)  # Esperamos el tiempo restante para que cargue la batalla real
+        time.sleep(2)
 
         for _ in range(3):
             screen = self.device.screenshot()
@@ -178,11 +175,25 @@ class DailyMissions:
                 break
 
         print("  [⚔️] Desafiando Jefe...")
-        screen = self.device.screenshot()
-        pos_boss = self.vision.find_template(screen, "templates/btn_challenge_boss.png", threshold=0.8)
-        if pos_boss:
-            self.device.tap(int(pos_boss[0]), int(pos_boss[1]))
-            self.handle_battle_sequence()
+        reintentos = 0
+        while reintentos < 3:
+            screen = self.device.screenshot()
+            pos_boss = self.vision.find_template(screen, "templates/btn_challenge_boss.png", threshold=0.8)
+            if pos_boss:
+                self.device.tap(int(pos_boss[0]), int(pos_boss[1]))
+
+                resultado = self.handle_battle_sequence()
+                if resultado == "draw":
+                    reintentos += 1
+                    print(f"   [🔄] Reintentando Jefe Torre por empate ({reintentos}/3)...")
+                    time.sleep(2)
+                else:
+                    break
+            else:
+                break
+
+        if reintentos == 3:
+            print("   [⚠️] Límite de empates alcanzado en la Torre.")
 
         self.return_to_home()
 
@@ -270,7 +281,7 @@ class DailyMissions:
                     print(f"   [🔄] Reintentando por empate ({reintentos}/3)...")
                     time.sleep(2)
                 else:
-                    break  # Ganó o perdió, sale del bucle de reintentos
+                    break
 
             if reintentos == 3:
                 print("   [⚠️] Límite de empates alcanzado. Avanzando al siguiente.")
