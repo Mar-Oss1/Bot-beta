@@ -1,6 +1,6 @@
 {
   "Version": 23,
-  "Time": 1781142187,
+  "Time": 1781858947,
   "Monster": [
     {
       "name": "HammerPantsThief01",
@@ -2307,7 +2307,8 @@
       },
       "passives": {
         "0": "RegenerationOnMyTurnGetTurnSkinA",
-        "1": "StunImmunity"
+        "1": "StunImmunity",
+        "2": "SleepImmunity"
       },
       "cost": 16,
       "baseAttack": 395,
@@ -74051,6 +74052,7 @@
       "consolationMultiplier": 0,
       "battleOrbImageFlip": 0,
       "attackType": "Bash",
+      "visible": 1,
       "skillVoices": {
         "0": [
           1,
@@ -74180,6 +74182,241 @@
           10,
           11,
           12
+        ]
+      },
+      "damageVoices": [
+        17,
+        18,
+        19,
+        20
+      ],
+      "deathVoices": [
+        21,
+        22,
+        23,
+        24
+      ],
+      "victoryVoices": [
+        25,
+        26
+      ],
+      "lineupVoices": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "evolutionVoices": [
+        38
+      ],
+      "trainVoices": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        39,
+        40,
+        41,
+        42,
+        43
+      ],
+      "titleVoices": [
+        44
+      ],
+      "gachaVoices": [
+        45
+      ],
+      "loginVoices": [
+        46
+      ],
+      "tapVoices": [
+        47,
+        48,
+        49
+      ],
+      "idleVoices": [
+        50
+      ]
+    },
+    {
+      "name": "JeanneFusion01",
+      "family": "JeanneFusion",
+      "class": "Monster",
+      "leaderBuff": "AttackUpAirD",
+      "leaderBuffCondition": "IsAir",
+      "activeSkills": {
+        "0": "SingleAttackAJeanneFusion",
+        "1": "AllyBuffAJeanneFusion",
+        "2": "EnemyBuffAJeanneFusion01"
+      },
+      "activeSkillsFamily": {
+        "2": "EnemyBuffAJeanneFusion"
+      },
+      "passives": {
+        "0": "GuardianAngelPassiveAJeanneFusion",
+        "1": "LifeForALifePassiveAJeanneFusion",
+        "2": "PlusHPBoostLv3",
+        "3": "PlusAttackBoostLv3",
+        "4": "AttackUpTargetEquippedGreatSwordLv3",
+        "5": "AddWeaponPrefHammer"
+      },
+      "cost": 28,
+      "baseAttack": 1125,
+      "baseMaxHp": 5585,
+      "speed": 800,
+      "element": "Air",
+      "weaponPref": "Spear",
+      "weaponPivotIndex": 0,
+      "secure": 1,
+      "superEvolve1": "JeanneFusion02",
+      "aiTargetPickWeight": 1,
+      "stars": 5,
+      "evolvedStars": 6,
+      "goldMultiplier": 1,
+      "consolationMultiplier": 0,
+      "battleOrbImageFlip": 0,
+      "attackType": "Bash",
+      "summonableMonsters": [
+        "JeanneFusion01"
+      ],
+      "summonableMatchSource": [
+        true
+      ],
+      "skillVoices": {
+        "0": [
+          1,
+          2
+        ],
+        "1": [
+          5,
+          6
+        ],
+        "2": [
+          9,
+          10
+        ],
+        "3": [
+          13,
+          14
+        ]
+      },
+      "damageVoices": [
+        17,
+        18
+      ],
+      "deathVoices": [
+        21,
+        22
+      ],
+      "victoryVoices": [
+        25
+      ],
+      "lineupVoices": [
+        27,
+        28,
+        29
+      ],
+      "evolutionVoices": [
+        38
+      ],
+      "trainVoices": [
+        33,
+        34,
+        35,
+        36,
+        37
+      ],
+      "titleVoices": [
+        44
+      ],
+      "gachaVoices": [
+        45
+      ],
+      "loginVoices": [
+        46
+      ],
+      "tapVoices": [
+        47,
+        48,
+        49
+      ],
+      "idleVoices": [
+        50
+      ]
+    },
+    {
+      "name": "JeanneFusion02",
+      "family": "JeanneFusion",
+      "class": "Monster",
+      "leaderBuff": "AttackUpAirD",
+      "leaderBuffCondition": "IsAir",
+      "activeSkills": {
+        "0": "SingleAttackAJeanneFusion",
+        "1": "AllyBuffAJeanneFusion",
+        "2": "EnemyBuffAJeanneFusion02",
+        "3": "AllAttackAJeanneFusion"
+      },
+      "activeSkillsFamily": {
+        "2": "EnemyBuffAJeanneFusion"
+      },
+      "passives": {
+        "0": "GuardianAngelPassiveAJeanneFusion",
+        "1": "LifeForALifePassiveAJeanneFusion",
+        "2": "PlusHPBoostLv3",
+        "3": "PlusAttackBoostLv3",
+        "4": "AttackUpTargetEquippedGreatSwordLv3",
+        "5": "AddWeaponPrefHammer"
+      },
+      "cost": 34,
+      "baseAttack": 1433,
+      "baseMaxHp": 7255,
+      "speed": 800,
+      "element": "Air",
+      "weaponPref": "Spear",
+      "weaponPivotIndex": 0,
+      "secure": 1,
+      "evolveFrom": "JeanneFusion01",
+      "aiTargetPickWeight": 1,
+      "stars": 6,
+      "evolvedStars": 6,
+      "goldMultiplier": 1,
+      "consolationMultiplier": 0,
+      "battleOrbImageFlip": 1,
+      "attackType": "Bash",
+      "cosmoName": "JeanneFusion03",
+      "summonableMonsters": [
+        "JeanneFusion02"
+      ],
+      "summonableMatchSource": [
+        true
+      ],
+      "skillVoices": {
+        "0": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "1": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "2": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "3": [
+          13,
+          14,
+          15,
+          16
         ]
       },
       "damageVoices": [

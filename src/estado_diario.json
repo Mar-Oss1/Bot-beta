@@ -1,0 +1,14 @@
+{
+    "fecha": "2026-06-30",
+    "cuentas": {
+        "Mcbeth/Beth": {
+            "fountain": true,
+            "tower": true,
+            "alliance": true,
+            "arena": true,
+            "summons": true,
+            "mana": true,
+            "rewards": true
+        }
+    }
+}

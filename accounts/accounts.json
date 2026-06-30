@@ -4,7 +4,7 @@
       "id": 1,
       "name": "Mcbeth/Beth",
       "serial": "B5DF7BWQLEYM",
-      "enabled": false,
+      "enabled": true,
       "priority": 1,
       "progress": {},
       "last_run": null,
@@ -22,10 +22,15 @@
       "id": 2,
       "name": "Mini Beth",
       "serial": "JD6C633CGJHT",
-      "enabled": false,
+      "enabled": true,
       "priority": 2,
-      "progress": {},
-      "last_run": null,
+      "progress": {
+        "2026-06-27": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-27 19:15",
       "notes": "",
       "servers": []
     },
@@ -33,7 +38,7 @@
       "id": 3,
       "name": "BENKEI",
       "serial": "ggnk6ex67cme",
-      "enabled": false,
+      "enabled": true,
       "priority": 3,
       "progress": {
         "2026-06-25": {
@@ -49,7 +54,7 @@
       "id": 4,
       "name": "Yukimura",
       "serial": "zy796k93rrwm",
-      "enabled": false,
+      "enabled": true,
       "priority": 4,
       "progress": {},
       "last_run": null,
@@ -100,10 +105,15 @@
       "id": 8,
       "name": "ASRA",
       "serial": "KTD2LRPHARZE",
-      "enabled": false,
+      "enabled": true,
       "priority": 8,
-      "progress": {},
-      "last_run": null,
+      "progress": {
+        "2026-06-26": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-26 20:02",
       "notes": "",
       "servers": []
     },
@@ -111,7 +121,7 @@
       "id": 9,
       "name": "Somnial",
       "serial": "M9C5HHMF2Y2D",
-      "enabled": false,
+      "enabled": true,
       "priority": 9,
       "progress": {},
       "last_run": null,
@@ -135,8 +145,13 @@
       "serial": "FAY50MC5ACY0",
       "enabled": true,
       "priority": 11,
-      "progress": {},
-      "last_run": null,
+      "progress": {
+        "2026-06-25": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-25 22:26",
       "notes": "",
       "servers": []
     }

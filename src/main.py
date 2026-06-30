@@ -27,7 +27,7 @@ def ejecutar_flujo_completo(db, dev, vis):
     dev.d.app_stop("com.zigzagame.evertale")
 
     for cuenta in cuentas_pendientes:
-        print(f"\n" + "=" * 45)
+        print("\n" + "=" * 45)
         print(f" 🚀 PROCESANDO CUENTA: {cuenta.name} (Prioridad {cuenta.priority})")
         print("=" * 45)
 
@@ -49,7 +49,7 @@ def ejecutar_flujo_completo(db, dev, vis):
                     time.sleep(12)
                     break
                 else:
-                    print(f" [⚠️] Falló el cambio. Limpiando y reiniciando...")
+                    print(" [⚠️] Falló el cambio. Limpiando y reiniciando...")
                     dev.d.app_stop("com.zigzagame.evertale")
                     time.sleep(3)
             else:
@@ -85,8 +85,8 @@ def ejecutar_flujo_completo(db, dev, vis):
                 dev.d.app_stop("com.zigzagame.evertale")
                 continue
 
-            # --- PASO D: Misiones Diarias ---
-            DailyMissions(dev, vis).execute()
+            # --- PASO D: Misiones Diarias (con gestor de estado por cuenta) ---
+            DailyMissions(dev, vis).execute(cuenta_name=cuenta.name)
 
             # --- PASO E: Limpieza ---
             dev.d.app_stop("com.zigzagame.evertale")
@@ -96,6 +96,7 @@ def ejecutar_flujo_completo(db, dev, vis):
         cuenta.mark_task_done("login_bonus")
         db.save()
         print(f" 💾 Progreso guardado: {cuenta.name}.")
+
 
 def menu_interactivo():
     db = Database()
@@ -115,24 +116,32 @@ def menu_interactivo():
         print(" 3. 🔄 Inyección Código")
         print(" 4. 🌐 Cambio Servidor")
         print(" 5. ⚔️ Rompehielos")
-        print(" 6. 📜 Misiones Diarias")
+        print(" 6. 📜 Misiones Diarias (Modo Prueba)")
         print(" 7. 🎃 Farmeo Evento")
         print(" 8. ❌ Salir")
         print("=" * 50)
 
         opcion = input(" Selecciona una opción: ")
 
-        if opcion == '1': ejecutar_flujo_completo(db, dev, vis)
-        elif opcion == '2': db.print_status()
-        elif opcion == '3': ChangeAccount(dev, vis).execute(input(" Código: "))
-        elif opcion == '4': ChangeServer(dev, vis).execute(f"templates/label_{input('Servidor: ').lower()}.png")
-        elif opcion == '5': Startup(dev, vis).execute()
-        elif opcion == '6': DailyMissions(dev, vis).execute()
+        if opcion == '1':
+            ejecutar_flujo_completo(db, dev, vis)
+        elif opcion == '2':
+            db.print_status()
+        elif opcion == '3':
+            ChangeAccount(dev, vis).execute(input(" Código: "))
+        elif opcion == '4':
+            ChangeServer(dev, vis).execute(f"templates/label_{input('Servidor: ').lower()}.png")
+        elif opcion == '5':
+            Startup(dev, vis).execute()
+        elif opcion == '6':
+            DailyMissions(dev, vis).execute(cuenta_name="Prueba_Manual")
         elif opcion == '7':
             print("\n--- Modo Farmeo de Evento Inteligente ---")
             input(" Asegúrate de estar en el menú del evento y presiona Enter...")
             EventFarm(dev, vis).execute()
-        elif opcion == '8': break
+        elif opcion == '8':
+            break
+
 
 if __name__ == "__main__":
     menu_interactivo()

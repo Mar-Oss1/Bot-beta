@@ -36,7 +36,7 @@ def patch_evertale_files():
         for ability in data.get("Ability", []):
             if ability.get("name") == "SakuraSweepAKojiroRegular":
                 ability["tuCost"] = 0
-                ability["spiritGain"] = 10
+                ability["spiritCost"] = 0
                 ability["useLimit"] = 0
                 ability["blockTargetManipulation"] = 0
                 ability["showConfirmation"] = 0
