@@ -110,6 +110,26 @@ class Account:
             return int((done / len(all_tasks)) * 100)
 
 
+    def mark_login_failed(self):
+        """Registra un fallo de login en el progreso de hoy."""
+        today = str(date.today())
+        if today not in self.progress:
+            self.progress[today] = {}
+
+        # Incrementamos el contador de fallos
+        fail_count = self.progress[today].get("login_fail_count", 0) + 1
+        self.progress[today]["login_failed"] = True
+        self.progress[today]["login_fail_count"] = fail_count
+        self.last_run = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    def has_failed_too_many_times(self, limit=2):
+        """Verifica si la cuenta ya falló más veces de las permitidas hoy."""
+        today = str(date.today())
+        fail_count = self.progress.get(today, {}).get("login_fail_count", 0)
+        return fail_count >= limit
+
+
+
 class Database:
     def __init__(self):
         self.accounts: list[Account] = []
@@ -164,9 +184,21 @@ class Database:
     def get_pending_accounts(self):
         """
         Retorna cuentas con tareas pendientes hoy,
-        ordenadas por prioridad
+        que no hayan superado el límite de fallos de login.
         """
-        pending = [a for a in self.accounts if a.enabled and len(a.pending_tasks()) > 0]
+        pending = []
+        for a in self.accounts:
+            if not a.enabled:
+                continue
+
+            # Si ya falló demasiadas veces hoy, la ignoramos
+            if a.has_failed_too_many_times(limit=2):
+                continue
+
+            # Si tiene tareas pendientes, la agregamos
+            if len(a.pending_tasks()) > 0:
+                pending.append(a)
+
         return sorted(pending, key=lambda a: a.priority)
 
     def print_status(self):

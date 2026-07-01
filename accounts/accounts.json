@@ -4,7 +4,7 @@
       "id": 1,
       "name": "Mcbeth/Beth",
       "serial": "B5DF7BWQLEYM",
-      "enabled": true,
+      "enabled": false,
       "priority": 1,
       "progress": {},
       "last_run": null,
@@ -22,15 +22,19 @@
       "id": 2,
       "name": "Mini Beth",
       "serial": "JD6C633CGJHT",
-      "enabled": true,
+      "enabled": false,
       "priority": 2,
       "progress": {
         "2026-06-27": {
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-06-30": {
+          "daily_missions": true,
+          "login_bonus": true
         }
       },
-      "last_run": "2026-06-27 19:15",
+      "last_run": "2026-06-30 12:17",
       "notes": "",
       "servers": []
     },
@@ -38,15 +42,19 @@
       "id": 3,
       "name": "BENKEI",
       "serial": "ggnk6ex67cme",
-      "enabled": true,
+      "enabled": false,
       "priority": 3,
       "progress": {
         "2026-06-25": {
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-06-30": {
+          "daily_missions": true,
+          "login_bonus": true
         }
       },
-      "last_run": "2026-06-25 21:34",
+      "last_run": "2026-06-30 12:19",
       "notes": "",
       "servers": []
     },
@@ -54,10 +62,15 @@
       "id": 4,
       "name": "Yukimura",
       "serial": "zy796k93rrwm",
-      "enabled": true,
+      "enabled": false,
       "priority": 4,
-      "progress": {},
-      "last_run": null,
+      "progress": {
+        "2026-06-30": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-30 12:20",
       "notes": "",
       "servers": []
     },
@@ -65,10 +78,21 @@
       "id": 5,
       "name": "Jiren / sami",
       "serial": "HRBZG387V5GN",
-      "enabled": false,
+      "enabled": true,
       "priority": 5,
-      "progress": {},
-      "last_run": null,
+      "progress": {
+        "2026-06-30": {
+          "SA-3": {
+            "fountain": true,
+            "tower": true,
+            "alliance": true,
+            "arena": true,
+            "summons": true,
+            "mana": true
+          }
+        }
+      },
+      "last_run": "2026-06-30 16:53",
       "notes": "Multi-server",
       "servers": [
         {
@@ -83,7 +107,7 @@
       "id": 6,
       "name": "Link123",
       "serial": "PNXZDR77HKY7",
-      "enabled": false,
+      "enabled": true,
       "priority": 6,
       "progress": {},
       "last_run": null,
@@ -94,7 +118,7 @@
       "id": 7,
       "name": "Omega123",
       "serial": "KR3Z2PGMDHXM",
-      "enabled": false,
+      "enabled": true,
       "priority": 7,
       "progress": {},
       "last_run": null,
@@ -105,15 +129,19 @@
       "id": 8,
       "name": "ASRA",
       "serial": "KTD2LRPHARZE",
-      "enabled": true,
+      "enabled": false,
       "priority": 8,
       "progress": {
         "2026-06-26": {
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-06-30": {
+          "daily_missions": true,
+          "login_bonus": true
         }
       },
-      "last_run": "2026-06-26 20:02",
+      "last_run": "2026-06-30 12:22",
       "notes": "",
       "servers": []
     },
@@ -121,10 +149,15 @@
       "id": 9,
       "name": "Somnial",
       "serial": "M9C5HHMF2Y2D",
-      "enabled": true,
+      "enabled": false,
       "priority": 9,
-      "progress": {},
-      "last_run": null,
+      "progress": {
+        "2026-06-30": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-30 12:24",
       "notes": "",
       "servers": []
     },
@@ -132,10 +165,15 @@
       "id": 10,
       "name": "KuroNeko",
       "serial": "H0MLNHWCTG7W",
-      "enabled": true,
+      "enabled": false,
       "priority": 10,
-      "progress": {},
-      "last_run": null,
+      "progress": {
+        "2026-06-30": {
+          "daily_missions": true,
+          "login_bonus": true
+        }
+      },
+      "last_run": "2026-06-30 12:29",
       "notes": "",
       "servers": []
     },
@@ -143,15 +181,19 @@
       "id": 11,
       "name": "Diferoku",
       "serial": "FAY50MC5ACY0",
-      "enabled": true,
+      "enabled": false,
       "priority": 11,
       "progress": {
         "2026-06-25": {
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-06-30": {
+          "daily_missions": true,
+          "login_bonus": true
         }
       },
-      "last_run": "2026-06-25 22:26",
+      "last_run": "2026-06-30 12:34",
       "notes": "",
       "servers": []
     }

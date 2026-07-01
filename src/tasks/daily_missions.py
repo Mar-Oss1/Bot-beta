@@ -1,141 +1,165 @@
+"""
+tasks/daily_missions.py
+
+Módulo principal de misiones diarias del bot Evertale.
+
+CAMBIOS VS VERSIÓN ANTERIOR:
+- Eliminado: sistema paralelo estado_diario.json
+- El estado de cada módulo se guarda en Account.progress (accounts.json)
+  usando mark_task_done(modulo, server_id) después de cada módulo completado.
+- Soporte real multi-servidor: execute(server_id) diferencia qué servidor
+  se está procesando y guarda el estado por separado para cada uno.
+- Tesseract: ruta leída desde .env via core/config.py (sin hardcoding).
+- Logging: reemplaza todos los print() por log.info / log.warning / log.error.
+- Economía: guarda gemas en logs/economia_log.jsonl al final de cada sesión.
+"""
 import time
 import datetime
-import json
-import os
 import cv2
 import pytesseract
-import numpy as np
 
-# Configura aquí la ruta de tu Tesseract si no está en las variables de entorno de Windows
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+from core.config import TESSERACT_CMD
+from core.logger import get_logger
+from core.economia import registrar_economia
+
+pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+
+log = get_logger("daily_missions")
 
 
 class DailyMissions:
-    def __init__(self, device, vision):
+    """
+    Recibe el objeto Account y Database para registrar el progreso
+    directamente en accounts.json después de cada módulo, sin archivo auxiliar.
+    """
+
+    def __init__(self, device, vision, account, db):
         self.device = device
         self.vision = vision
-        self.estado_file = "estado_diario.json"
-        self.cuenta_actual = "Default"
-        self.estado_hoy = self.cargar_estado()
+        self.account = account     # objeto Account de core/database.py
+        self.db = db               # objeto Database para llamar db.save()
 
-    # ==========================================
-    # SISTEMA DE LOGS Y ESTADO JSON
-    # ==========================================
-    def cargar_estado(self):
-        hoy = datetime.datetime.now().strftime("%Y-%m-%d")
-        if os.path.exists(self.estado_file):
-            try:
-                with open(self.estado_file, "r") as f:
-                    data = json.load(f)
-                    if data.get("fecha") == hoy:
-                        return data
-            except Exception:
-                pass
-        return {"fecha": hoy, "cuentas": {}}
-
-    def guardar_estado(self):
-        with open(self.estado_file, "w") as f:
-            json.dump(self.estado_hoy, f, indent=4)
-
-    def actualizar_modulo(self, modulo, completado=True):
-        if self.cuenta_actual not in self.estado_hoy["cuentas"]:
-            self.estado_hoy["cuentas"][self.cuenta_actual] = {}
-        self.estado_hoy["cuentas"][self.cuenta_actual][modulo] = completado
-        self.guardar_estado()
-
-    def modulo_completado(self, modulo):
-        return self.estado_hoy["cuentas"].get(self.cuenta_actual, {}).get(modulo, False)
-
-    # ==========================================
-    # SISTEMA OCR (CONTADOR DE GEMAS)
-    # ==========================================
-    def leer_gemas(self):
+    # ──────────────────────────────────────────
+    # HELPERS DE ESTADO (delegan a Account)
+    # ──────────────────────────────────────────
+    def _modulo_completado(self, modulo: str) -> bool:
         """
-        Lee el contador de gemas mediante un recorte fijo de pantalla (ROI),
-        en vez de depender de detección de template. Coordenadas calibradas
-        para la posición del contador de gemas en la barra superior.
+        Consulta si el módulo ya fue completado hoy para este servidor.
+        Para cuentas sin servidor, server_id es None (raíz del día).
         """
-        print("  [👁️] Escaneando contador de gemas (OCR)...")
+        if self.account is None:
+            return False
+        return self.account.is_task_done(modulo, self._sid)
+
+    def _completar_modulo(self, modulo: str):
+        """
+        Marca el módulo como completado y guarda inmediatamente en disco.
+        Si el bot se cae después de esto, el módulo no se repite.
+        """
+        if self.account is None:
+            return
+        self.account.mark_task_done(modulo, self._sid)
+        if self.db is not None:
+            self.db.save()
+        log.debug("Módulo '%s' guardado en accounts.json [server: %s]", modulo, self._sid or "DEFAULT")
+
+    @property
+    def _sid(self):
+        """
+        Convierte "DEFAULT" a None para que mark_task_done/is_task_done
+        guarden el estado directamente bajo la fecha (sin sub-clave de servidor).
+        """
+        return None if self._server_id == "DEFAULT" else self._server_id
+
+    # ──────────────────────────────────────────
+    # OCR — CONTADOR DE GEMAS
+    # ──────────────────────────────────────────
+    def leer_gemas(self) -> int:
+        """
+        Lee el contador de gemas con OCR usando un recorte fijo de pantalla.
+        Coordenadas calibradas para 2400×1080 (POCO X5 Pro en landscape).
+        """
+        log.info("👁️  Escaneando contador de gemas...")
         try:
-            # Coordenadas ajustadas para la zona de gemas en pantalla (2400x1080)
-            X, Y, W, H = 2060, 35, 210, 50
-
+            X, Y, W, H = 1315, 35, 290, 50
             screen_path = "temp_gems_ocr.png"
-            # Aseguramos que la captura sea reciente
             self.device.d.screenshot(screen_path)
             img = cv2.imread(screen_path)
 
             if img is None:
-                print("  [!] No se pudo leer la captura de pantalla para OCR.")
+                log.warning("No se pudo leer la captura para OCR.")
                 return 0
 
-            # Recortamos la zona donde están los números
             roi = img[Y:Y + H, X:X + W]
-
-            # Procesamiento para OCR: mejora contraste y escala para lectura precisa
             gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
             gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-            # Threshold: letras blancas (números) sobre fondo oscuro
             _, thresh = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY)
 
-            # Leer números (whitelist fuerza a que solo busque dígitos)
             texto = pytesseract.image_to_string(
-                thresh, config='--psm 7 -c tessedit_char_whitelist=0123456789'
+                thresh, config="--psm 7 -c tessedit_char_whitelist=0123456789"
             )
-            numeros = ''.join(filter(str.isdigit, texto))
+            numeros = "".join(filter(str.isdigit, texto))
 
+            import os
             if os.path.exists(screen_path):
                 os.remove(screen_path)
 
-            valor = int(numeros) if numeros else 0
-            print(f"  [💎] Gemas leídas: {valor}")
+            # Si OCR falla, guardar debug para diagnóstico
+            if not numeros:
+                debug_path = f"logs/debug_ocr_{datetime.datetime.now().strftime('%H%M%S')}.png"
+                os.makedirs("logs", exist_ok=True)
+                cv2.imwrite(debug_path, thresh)
+                log.warning("OCR devolvió vacío. Debug guardado en %s", debug_path)
+                return 0
+
+            valor = int(numeros)
+            log.info("💎 Gemas leídas: %d", valor)
             return valor
 
         except Exception as e:
-            print(f"  [!] Error de OCR. ¿Instalaste Tesseract en tu PC?: {e}")
+            log.error("Error de OCR: %s", e)
             return 0
 
-    # ==========================================
+    # ──────────────────────────────────────────
     # FUNCIONES BASE DE INTERACCIÓN
-    # ==========================================
+    # ──────────────────────────────────────────
     def cerrar_ventana(self, screen=None):
-        """
-        Función unificada de cierre: intenta botón X, si no existe intenta
-        btn_back.png, y como última opción presiona el botón 'back' de Android.
-        """
+        """Cierre unificado: botón X → btn_back → back físico de Android."""
         if screen is None:
             screen = self.device.screenshot()
 
-        pos_close = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
-        if pos_close:
-            print("   [<] Cerrando con botón X...")
-            self.device.tap(int(pos_close[0]), int(pos_close[1]))
+        pos = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
+        if pos:
+            log.debug("Cerrando con botón X")
+            self.device.tap(pos[0], pos[1])
             time.sleep(2)
             return
 
-        pos_back = self.vision.find_template(screen, "templates/btn_back.png", threshold=0.9)
-        if pos_back:
-            print("   [<] Cerrando con btn_back.png...")
-            self.device.tap(int(pos_back[0]), int(pos_back[1]))
+        pos = self.vision.find_template(screen, "templates/btn_back.png", threshold=0.9)
+        if pos:
+            log.debug("Cerrando con btn_back.png")
+            self.device.tap(pos[0], pos[1])
             time.sleep(2)
             return
 
-        print("   [<] No se detectó X ni btn_back. Usando botón físico/virtual 'back' de Android...")
+        log.debug("Sin botón de cierre detectado. Usando back de Android.")
         self.device.d.press("back")
         time.sleep(2)
 
     def clear_loot_windows(self):
+        """Cierra ventanas de fin de batalla / nivel / loot hasta 5 veces."""
+        templates = [
+            "templates/pantalla_loot.png",
+            "templates/level_up.png",
+            "templates/rewards.png",
+            "templates/victory_banner.png",
+            "templates/defeat_banner.png",
+        ]
         intentos = 0
         while intentos < 5:
             screen = self.device.screenshot()
-            pos_loot = self.vision.find_template(screen, "templates/pantalla_loot.png", threshold=0.9)
-            pos_nivel = self.vision.find_template(screen, "templates/level_up.png", threshold=0.9)
-            pos_rewards = self.vision.find_template(screen, "templates/rewards.png", threshold=0.9)
-            pos_victory = self.vision.find_template(screen, "templates/victory_banner.png", threshold=0.9)
-            pos_defeat = self.vision.find_template(screen, "templates/defeat_banner.png", threshold=0.9)
-
-            if pos_loot or pos_nivel or pos_rewards or pos_victory or pos_defeat:
-                print("   [+] Pantalla de fin de batalla/botín detectada. Cerrando...")
+            if any(self.vision.find_template(screen, t, threshold=0.9) for t in templates):
+                log.debug("Ventana de loot/victoria detectada. Cerrando...")
                 self.device.tap(100, 100)
                 time.sleep(1.5)
                 intentos += 1
@@ -143,269 +167,275 @@ class DailyMissions:
                 break
 
     def _limpiar_invocacion(self):
-        print("   [>>] Esperando animación para saltar (Skip)...")
-        intentos_skip = 0
-        animacion_saltada = False
-        while intentos_skip < 8:
+        """Salta la animación de invocación y cierra las pantallas de resultado."""
+        log.debug("Esperando botón Skip de invocación...")
+        for _ in range(3):
             screen = self.device.screenshot()
-            pos_skip = self.vision.find_template(screen, "templates/btn_skip_summon.png", threshold=0.75)
-
-            if pos_skip:
-                self.device.tap(int(pos_skip[0]), int(pos_skip[1]))
-                print("   [>>] Animación saltada exitosamente.")
-                animacion_saltada = True
+            pos = self.vision.find_template(screen, "templates/btn_skip_scene.png", threshold=0.75)
+            if pos:
+                self.device.tap(pos[0], pos[1])
+                log.debug("Animación saltada.")
                 time.sleep(2)
                 break
-
             time.sleep(1)
-            intentos_skip += 1
-
-        if not animacion_saltada:
-            print("   [!] No se vio el botón Skip, esperando que termine la animación natural...")
+        else:
+            log.debug("Sin botón Skip. Esperando animación natural...")
             time.sleep(5)
 
-        print("   [>] Recogiendo personajes y limpiando pantallas...")
-        intentos_limpieza = 0
-        while intentos_limpieza < 6:
+        intentos = 0
+        while intentos < 6:
             screen = self.device.screenshot()
-            pos_result_ok = self.vision.find_template(screen, "templates/btn_result_ok.png", threshold=0.8)
-            pos_rewards = self.vision.find_template(screen, "templates/rewards.png", threshold=0.8)
-
-            if pos_result_ok:
-                print("   [+] Pantalla de resultados detectada. Dando OK...")
-                self.device.tap(int(pos_result_ok[0]), int(pos_result_ok[1]))
+            pos_ok = self.vision.find_template(screen, "templates/btn_result_ok.png", threshold=0.8)
+            pos_rw = self.vision.find_template(screen, "templates/rewards.png", threshold=0.8)
+            if pos_ok:
+                self.device.tap(pos_ok[0], pos_ok[1])
                 time.sleep(1.5)
-                intentos_limpieza = 0
-
-            elif pos_rewards:
-                print("   [+] Pantalla de auto-forge/rewards detectada. Cerrando...")
+                intentos = 0
+            elif pos_rw:
                 self.device.tap(100, 100)
                 time.sleep(1.5)
-                intentos_limpieza = 0
-
+                intentos = 0
             else:
-                intentos_limpieza += 1
+                intentos += 1
                 time.sleep(1)
 
     def return_to_home(self):
         screen = self.device.screenshot()
-        pos_home = self.vision.find_template(screen, "templates/btn_home_nav.png", threshold=0.9)
-        if pos_home:
-            self.device.tap(int(pos_home[0]), int(pos_home[1]))
+        pos = self.vision.find_template(screen, "templates/btn_home_nav.png", threshold=0.9)
+        if pos:
+            self.device.tap(pos[0], pos[1])
             time.sleep(3)
 
-    def handle_battle_sequence(self):
+    def handle_battle_sequence(self) -> str:
         """
-        Maneja el flujo de una batalla. Si detecta un empate (Draw.png), confirma
-        con btn_draw_ok.png y devuelve "draw" para que el llamador decida reintentar
-        (hasta 3 veces según la lógica de cada módulo).
+        Maneja el flujo de una batalla.
+        Retorna "draw" si detecta empate, "finished" si terminó normalmente.
+        El llamador decide si reintenta (máx 3 veces en torre/arena).
         """
         time.sleep(2)
         screen = self.device.screenshot()
         pos_draw = self.vision.find_template(screen, "templates/Draw.png", threshold=0.9)
 
         if pos_draw:
-            print("   [⚖️] Se detectó un EMPATE (Draw) instantáneo.")
+            log.info("⚖️  EMPATE detectado.")
             pos_ok = self.vision.find_template(screen, "templates/btn_draw_ok.png", threshold=0.9)
             if pos_ok:
-                self.device.tap(int(pos_ok[0]), int(pos_ok[1]))
+                self.device.tap(pos_ok[0], pos_ok[1])
             time.sleep(2)
             return "draw"
 
-        print("   [⚔️] Intentando saltar/acelerar batalla...")
+        log.debug("Intentando saltar/acelerar batalla...")
         time.sleep(2)
 
         for _ in range(3):
             screen = self.device.screenshot()
             pos_skip = self.vision.find_template(screen, "templates/btn_battle_skip.png", threshold=0.9)
             pos_speed = self.vision.find_template(screen, "templates/btn_battle_speed.png", threshold=0.9)
-
             if pos_skip:
-                self.device.tap(int(pos_skip[0]), int(pos_skip[1]))
-                print("   [>] Batalla saltada.")
+                self.device.tap(pos_skip[0], pos_skip[1])
+                log.debug("Batalla saltada.")
                 time.sleep(4)
                 break
             elif pos_speed:
-                self.device.tap(int(pos_speed[0]), int(pos_speed[1]))
+                self.device.tap(pos_speed[0], pos_speed[1])
                 time.sleep(1)
 
-        print("   [>] Limpiando pantallas de victoria/derrota/loot...")
         self.clear_loot_windows()
         return "finished"
 
-    def check_and_recover_mana(self):
+    def check_and_recover_mana(self) -> bool:
         screen = self.device.screenshot()
-        pos_insuficiente = self.vision.find_template(screen, "templates/mana_insuficiente.png", threshold=0.9)
+        pos = self.vision.find_template(screen, "templates/mana_insuficiente.png", threshold=0.9)
+        if not pos:
+            return False
 
-        if pos_insuficiente:
-            print("  [💧] ¡Aviso de maná detectado! Usando botón de restauración...")
-            pos_ok = self.vision.find_template(screen, "templates/btn_ok_restore.png", threshold=0.9)
-            if pos_ok:
-                self.device.tap(int(pos_ok[0]), int(pos_ok[1]))
-            else:
-                self.device.tap(int(pos_insuficiente[0]), int(pos_insuficiente[1]))
+        log.info("💧 Aviso de maná detectado. Recuperando...")
+        pos_ok = self.vision.find_template(screen, "templates/btn_ok_restore.png", threshold=0.9)
+        self.device.tap((pos_ok or pos)[0], (pos_ok or pos)[1])
+        time.sleep(2)
 
-            time.sleep(2)
+        screen2 = self.device.screenshot()
+        pos_cb = self.vision.find_template(screen2, "templates/checkbox_mana.png", threshold=0.9)
+        if pos_cb:
+            self.device.tap(pos_cb[0], pos_cb[1])
+            time.sleep(1.5)
 
-            screen_pot = self.device.screenshot()
-            pos_checkbox = self.vision.find_template(screen_pot, "templates/checkbox_mana.png", threshold=0.9)
-            if pos_checkbox:
-                print("   [+] Activando uso automático de pociones (Checkbox)...")
-                self.device.tap(int(pos_checkbox[0]), int(pos_checkbox[1]))
-                time.sleep(1.5)
+        self.cerrar_ventana(self.device.screenshot())
+        time.sleep(2)
+        return True
 
-            screen_cerrar = self.device.screenshot()
-            self.cerrar_ventana(screen_cerrar)
+    # ──────────────────────────────────────────
+    # ORQUESTADOR PRINCIPAL
+    # ──────────────────────────────────────────
+    def execute(self, server_id: str = "DEFAULT") -> bool:
+        """
+        Ejecuta la rutina diaria completa para el servidor indicado.
+        Cada módulo se verifica contra accounts.json antes de ejecutar
+        y se guarda inmediatamente al completar.
 
-            time.sleep(2)
-            return True
-        return False
+        Args:
+            server_id: "SA-3", "SA-6", "DEFAULT", etc. Se usa como clave
+                       en Account.progress para separar el estado por servidor.
+        """
+        self._server_id = server_id
+        cuenta_label = f"{self.account.name if self.account else 'Prueba'} [{server_id}]"
 
-    # ==========================================
-    # CEREBRO PRINCIPAL (ORQUESTADOR)
-    # ==========================================
-    def execute(self, cuenta_name="Default"):
-        self.cuenta_actual = cuenta_name
-        print(f"\n [📜] Iniciando Rutina Diaria para: {self.cuenta_actual}")
+        log.info("=" * 55)
+        log.info("📜 Iniciando Rutina Diaria — %s", cuenta_label)
+        log.info("=" * 55)
 
-        # OCR: Lectura inicial
+        self.return_to_home()
+        time.sleep(2)
+
         gemas_inicio = self.leer_gemas()
-        print(f" [💎] Gemas al empezar: {gemas_inicio}")
+        log.info("💎 Gemas al empezar: %d", gemas_inicio)
 
-        # === VALIDACIÓN FUENTE ===
-        dia_actual = datetime.datetime.now().day
-        if dia_actual in [14, 15, 30, 31]:
-            if not self.modulo_completado("fountain"):
-                print(f"  [📅] Día {dia_actual}. Activando Lucky Fountain!")
+        # Lucky Fountain (días 14, 15, 30, 31)
+        dia = datetime.datetime.now().day
+        if dia in [14, 15, 30, 31]:
+            if not self._modulo_completado("fountain"):
+                log.info("📅 Día %d → activando Lucky Fountain", dia)
                 self.do_lucky_fountain()
             else:
-                print(f"  [📅] Lucky Fountain ya fue completada hoy para esta cuenta.")
+                log.info("⏭️  Lucky Fountain ya completada.")
 
-        # === EJECUCIÓN DINÁMICA POR ESTADO ===
+        # Módulos en orden
         modulos = [
-            ("tower", self.do_tower_of_trials, "Tower of Trials"),
-            ("alliance", self.do_alliance_quest, "Misiones de Gremio"),
-            ("arena", self.do_arena, "Arena"),
-            ("summons", self.do_summons, "Invocaciones"),
-            ("mana", self.do_spend_mana, "Gasto de Maná"),
-            ("rewards", self.claim_all_rewards, "Reclamo de Recompensas"),
+            ("tower",    self.do_tower_of_trials,  "Tower of Trials"),
+            ("alliance", self.do_alliance_quest,    "Misiones de Gremio"),
+            ("arena",    self.do_arena,             "Arena"),
+            ("summons",  self.do_summons,           "Invocaciones"),
+            ("mana",     self.do_spend_mana,        "Gasto de Maná"),
+            ("rewards",  self.claim_all_rewards,    "Reclamo de Recompensas"),
         ]
 
         for key, func, label in modulos:
-            if not self.modulo_completado(key):
+            if not self._modulo_completado(key):
+                log.info("▶️  Ejecutando: %s", label)
                 func()
-                self.actualizar_modulo(key)
+                self._completar_modulo(key)
             else:
-                print(f" [⏭️] Saltando {label} (Ya completado).")
+                log.info("⏭️  %s ya completado.", label)
 
-        # OCR: Lectura final y balance
+        # Marcar la sesión completa
+        self._completar_modulo("daily_missions")
+        self._completar_modulo("login_bonus")
+
+        # OCR final y registro económico
+        self.return_to_home()
+        time.sleep(3)
         gemas_fin = self.leer_gemas()
+        if gemas_fin == 0:
+            log.warning("Lectura de gemas cero, reintentando...")
+            time.sleep(2)
+            gemas_fin = self.leer_gemas()
+
         diferencia = gemas_fin - gemas_inicio
+        log.info("━" * 40)
+        log.info("📊 REPORTE CONTABLE — %s", cuenta_label)
+        log.info("  💎 Gemas inicio : %d", gemas_inicio)
+        log.info("  💎 Gemas fin    : %d", gemas_fin)
+        log.info("  📈 Ganancia Neta: %s%d gemas", "+" if diferencia >= 0 else "", diferencia)
+        log.info("━" * 40)
 
-        print("\n" + "=" * 40)
-        print(f" 📊 REPORTE CONTABLE - {self.cuenta_actual}")
-        print("=" * 40)
-        print(f"  💎 Gemas iniciales : {gemas_inicio}")
-        print(f"  💎 Gemas finales   : {gemas_fin}")
-        print(f"  📈 Ganancia Neta   : {'+' if diferencia >= 0 else ''}{diferencia} gemas")
-        print("=" * 40)
+        # Guardar en el log económico histórico
+        registrar_economia(
+            cuenta_nombre=self.account.name if self.account else "Prueba",
+            server_id=server_id,
+            gemas_inicio=gemas_inicio,
+            gemas_fin=gemas_fin,
+        )
 
-        print(f" [✅] Rutina Diaria completada para {self.cuenta_actual}!")
+        log.info("✅ Rutina completada para %s", cuenta_label)
         return True
 
-    # ==========================================
+    # ──────────────────────────────────────────
     # MÓDULOS DE JUEGO
-    # ==========================================
+    # ──────────────────────────────────────────
     def do_lucky_fountain(self):
-        print("\n [⛲] Modulo: Lucky Fountain")
+        log.info("⛲ Módulo: Lucky Fountain")
         screen = self.device.screenshot()
-        pos_fountain_home = self.vision.find_template(screen, "templates/btn_fountain_home.png", threshold=0.95)
-        if pos_fountain_home:
-            self.device.tap(int(pos_fountain_home[0]), int(pos_fountain_home[1]))
+        pos = self.vision.find_template(screen, "templates/btn_fountain_home.png", threshold=0.8)
+        if pos:
+            self.device.tap(pos[0], pos[1])
             time.sleep(3)
 
         for fase in range(1, 5):
             screen = self.device.screenshot()
             pos_offer = self.vision.find_template(screen, "templates/btn_fountain_offer.png", threshold=0.8)
             if pos_offer:
-                print(f"   [+] Tirando en la fase {fase}/4...")
-                self.device.tap(int(pos_offer[0]), int(pos_offer[1]))
+                log.info("  [+] Tirando fase %d/4...", fase)
+                self.device.tap(pos_offer[0], pos_offer[1])
                 time.sleep(4)
                 self.clear_loot_windows()
                 time.sleep(1)
             else:
-                print("   [!] No se puede tirar más (Botón no detectado o gemas insuficientes).")
+                log.warning("  [!] No se puede tirar más.")
                 break
 
-        print("   [<] Cerrando Lucky Fountain...")
+        log.debug("Cerrando Lucky Fountain...")
         self.cerrar_ventana()
-
         self.return_to_home()
-        self.actualizar_modulo("fountain")
+        self._completar_modulo("fountain")
 
     def do_premium_summons(self):
-        print("\n [🌠] Modulo: Invocación de Personajes (Premium)")
+        log.info("🌠 Módulo: Invocación Premium")
         screen = self.device.screenshot()
         pos_x10 = self.vision.find_template(screen, "templates/btn_summon_x10.png", threshold=0.8)
-
         if not pos_x10:
-            print("  ❌ No se encontró el botón de Invocación x10. ¿Estás en el banner correcto?")
+            log.error("No se encontró el botón x10. ¿Estás en el banner correcto?")
             return
 
-        self.device.tap(int(pos_x10[0]), int(pos_x10[1]))
+        self.device.tap(pos_x10[0], pos_x10[1])
         time.sleep(1.5)
 
         screen = self.device.screenshot()
         pos_confirm = self.vision.find_template(screen, "templates/btn_confirm_summon.png", threshold=0.8)
         if pos_confirm:
-            print("   [+] Confirmando gasto de gemas...")
-            self.device.tap(int(pos_confirm[0]), int(pos_confirm[1]))
+            log.info("  [+] Confirmando invocación...")
+            self.device.tap(pos_confirm[0], pos_confirm[1])
             self._limpiar_invocacion()
         else:
-            print("  ❌ No apareció la ventana de confirmación.")
-            return
-        print("  [✅] Invocación completada.")
+            log.error("No apareció la ventana de confirmación.")
 
     def do_tower_of_trials(self):
-        print("\n [🗼] Modulo: Tower of Trials")
+        log.info("🗼 Módulo: Tower of Trials")
         screen = self.device.screenshot()
         pos_tot = self.vision.find_template(screen, "templates/btn_tot_home.png", threshold=0.9)
         if not pos_tot:
-            print("  ❌ No se encontró el botón de Tower of Trials.")
+            log.error("No se encontró el botón de Tower of Trials.")
             return
 
-        self.device.tap(int(pos_tot[0]), int(pos_tot[1]))
+        self.device.tap(pos_tot[0], pos_tot[1])
         time.sleep(5)
 
-        print("  [🎁] Reclamando cofre...")
+        # Cofre
         screen = self.device.screenshot()
         pos_chest = self.vision.find_template(screen, "templates/btn_tot_chest.png", threshold=0.9)
         if pos_chest:
-            self.device.tap(int(pos_chest[0]), int(pos_chest[1] - 45))
+            self.device.tap(pos_chest[0], pos_chest[1] - 10)
             time.sleep(2)
             self.clear_loot_windows()
 
-        print("  [⏩] Acelerando (Fast Forward)...")
+        # Fast Forward
         screen = self.device.screenshot()
-        pos_ff_menu = self.vision.find_template(screen, "templates/btn_fast_forward_menu.png", threshold=0.9)
-        if pos_ff_menu:
-            self.device.tap(int(pos_ff_menu[0]), int(pos_ff_menu[1]))
+        pos_ff = self.vision.find_template(screen, "templates/btn_fast_forward_menu.png", threshold=0.9)
+        if pos_ff:
+            self.device.tap(pos_ff[0], pos_ff[1])
             time.sleep(3)
-
-            acels = 0
-            intentos_flecha = 0
+            acels, intentos_flecha = 0, 0
             while acels < 2 and intentos_flecha < 3:
                 screen = self.device.screenshot()
                 pos_green = self.vision.find_template(screen, "templates/btn_ff_green.png", threshold=0.9)
                 if pos_green:
-                    self.device.tap(int(pos_green[0]), int(pos_green[1]))
+                    self.device.tap(pos_green[0], pos_green[1])
                     time.sleep(2)
                     self.clear_loot_windows()
                     acels += 1
                 else:
                     pos_arrow = self.vision.find_template(screen, "templates/btn_ff_arrow.png", threshold=0.9)
                     if pos_arrow:
-                        self.device.tap(int(pos_arrow[0]), int(pos_arrow[1]))
+                        self.device.tap(pos_arrow[0], pos_arrow[1])
                         time.sleep(1.5)
                         intentos_flecha += 1
                     else:
@@ -413,248 +443,227 @@ class DailyMissions:
             self.device.tap(100, 100)
             time.sleep(1)
 
-        print("  [🔍] Explorando (3x)...")
+        # Explorar x3
         for _ in range(3):
             self.clear_loot_windows()
             screen = self.device.screenshot()
-            pos_explore = self.vision.find_template(screen, "templates/btn_explore.png", threshold=0.9)
-            if pos_explore:
-                self.device.tap(int(pos_explore[0]), int(pos_explore[1]))
+            pos_exp = self.vision.find_template(screen, "templates/btn_explore.png", threshold=0.9)
+            if pos_exp:
+                self.device.tap(pos_exp[0], pos_exp[1])
                 time.sleep(3)
                 self.clear_loot_windows()
             else:
                 break
 
-        print("  [⚔️] Desafiando Jefe...")
+        # Jefe con reintento por empate
         reintentos = 0
         while reintentos < 3:
             screen = self.device.screenshot()
             pos_boss = self.vision.find_template(screen, "templates/btn_challenge_boss.png", threshold=0.9)
-            if pos_boss:
-                self.device.tap(int(pos_boss[0]), int(pos_boss[1]))
-                resultado = self.handle_battle_sequence()
-                if resultado == "draw":
-                    reintentos += 1
-                    print(f"   [🔄] Reintentando Jefe Torre por empate ({reintentos}/3)...")
-                    time.sleep(2)
-                else:
-                    break
+            if not pos_boss:
+                break
+            self.device.tap(pos_boss[0], pos_boss[1])
+
+            # --- ESPERA DE 5 SEGUNDOS AÑADIDA AQUÍ ---
+            log.info("  [⏳] Esperando 5 segundos a que el servidor responda...")
+            time.sleep(5)
+            # ----------------------------------------
+
+            if self.handle_battle_sequence() == "draw":
+                reintentos += 1
+                log.warning("Empate en Torre (%d/3). Reintentando...", reintentos)
+                time.sleep(2)
             else:
                 break
 
         if reintentos == 3:
-            print("   [⚠️] Límite de empates alcanzado en la Torre.")
+            log.warning("Límite de empates alcanzado en Torre.")
 
         self.return_to_home()
 
     def do_alliance_quest(self):
-        print("\n [🛡️] Modulo: Misiones de Gremio")
+        log.info("🛡️  Módulo: Misiones de Gremio")
         screen = self.device.screenshot()
         pos_bw = self.vision.find_template(screen, "templates/btn_battalion_warfare.png", threshold=0.9)
         if not pos_bw:
             return
-        self.device.tap(int(pos_bw[0]), int(pos_bw[1]))
+        self.device.tap(pos_bw[0], pos_bw[1])
         time.sleep(2)
 
         screen = self.device.screenshot()
         pos_aq = self.vision.find_template(screen, "templates/btn_alliance_quest.png", threshold=0.9)
         if pos_aq:
-            self.device.tap(int(pos_aq[0]), int(pos_aq[1]))
+            self.device.tap(pos_aq[0], pos_aq[1])
             time.sleep(2)
 
         screen = self.device.screenshot()
-        print("  [🗡️] F2P: Usando Challenge Boss individual.")
-        pos_challenge = self.vision.find_template(screen, "templates/btn_challenge_boss_2.png", threshold=0.9)
-        if pos_challenge:
-            self.device.tap(int(pos_challenge[0]), int(pos_challenge[1]))
-            self.handle_battle_sequence()
-
-            print("  [>] Limpiando pantallas post-batalla a la derecha...")
+        pos_ch = self.vision.find_template(screen, "templates/btn_challenge_boss_2.png", threshold=0.9)
+        if pos_ch:
+            self.device.tap(pos_ch[0], pos_ch[1])
+            self.handle_battle_sequence()  # Una sola vez (F2P, no reintenta)
             for _ in range(3):
                 self.device.tap(2200, 500)
                 time.sleep(1)
 
-        print("  [🔙] Volviendo atrás para Arena...")
         self.cerrar_ventana()
 
     def do_arena(self):
-        print("\n [🏟️] Modulo: Arena (5 Batallas)")
+        log.info("🏟️  Módulo: Arena (5 batallas)")
         screen = self.device.screenshot()
         pos_arena = self.vision.find_template(screen, "templates/arena.png", threshold=0.9)
         if not pos_arena:
-            print("  ❌ No se encontró el ícono de Arena en el Home.")
+            log.error("No se encontró el ícono de Arena.")
             return
 
-        self.device.tap(int(pos_arena[0]), int(pos_arena[1]))
+        self.device.tap(pos_arena[0], pos_arena[1])
         time.sleep(4)
 
         screen = self.device.screenshot()
         arenas = self.vision.find_all_templates(screen, "templates/btn_arena.png", threshold=0.9)
         if not arenas:
-            print("  ❌ No se encontraron los modos de Arena.")
+            log.error("No se encontraron los modos de Arena.")
             self.return_to_home()
             return
 
-        arenas.sort(key=lambda pos: pos[0])
-        desplazamiento_y = 190
-
-        print("  [>] Gema detectada. Dando clic al botón de Arena inferior...")
-        self.device.tap(int(arenas[0][0]), int(arenas[0][1] + desplazamiento_y))
+        arenas.sort(key=lambda p: p[0])
+        self.device.tap(int(arenas[0][0]), int(arenas[0][1] + 190))
         time.sleep(3)
 
-        print("  [⚔️] Iniciando los 5 combates diarios...")
         for i in range(5):
-            print(f"   [🥊] Combate {i + 1}/5...")
+            log.info("  🥊 Combate %d/5...", i + 1)
             reintentos = 0
             while reintentos < 3:
                 screen = self.device.screenshot()
                 oponentes = self.vision.find_all_templates(screen, "templates/challenge_area.png", threshold=0.9)
                 if not oponentes:
-                    print("   [!] No se encontraron oponentes o botón de desafío.")
+                    log.warning("No se encontraron oponentes.")
                     break
-
-                oponentes.sort(key=lambda pos: pos[1])
-                self.device.tap(int(oponentes[0][0]), int(oponentes[0][1]))
-
-                resultado = self.handle_battle_sequence()
-                if resultado == "draw":
+                oponentes.sort(key=lambda p: p[1])
+                self.device.tap(oponentes[0][0], oponentes[0][1])
+                if self.handle_battle_sequence() == "draw":
                     reintentos += 1
-                    print(f"   [🔄] Reintentando por empate ({reintentos}/3)...")
+                    log.warning("Empate en Arena (%d/3). Reintentando...", reintentos)
                     time.sleep(2)
                 else:
                     break
-
             if reintentos == 3:
-                print("   [⚠️] Límite de empates alcanzado. Avanzando al siguiente.")
+                log.warning("Límite de empates alcanzado. Avanzando.")
             time.sleep(2)
 
-        print("  [✅] Rutina de Arena finalizada.")
+        log.info("  ✅ Arena finalizada.")
         self.return_to_home()
 
     def do_summons(self):
-        print("\n [🌟] Modulo: Invocaciones")
+        log.info("🌟 Módulo: Invocaciones")
         screen = self.device.screenshot()
         pos_nav = self.vision.find_template(screen, "templates/btn_summon_nav.png", threshold=0.9)
         if not pos_nav:
             return
-        self.device.tap(int(pos_nav[0]), int(pos_nav[1]))
+        self.device.tap(pos_nav[0], pos_nav[1])
         time.sleep(3)
 
-        encontrado = False
-        intentos = 0
+        # Buscar banner con summon gratis
+        encontrado, intentos = False, 0
         while not encontrado and intentos < 5:
             screen = self.device.screenshot()
-            pos_x1_free = self.vision.find_template(screen, "templates/btn_summon_x1_free.png", threshold=0.9)
-
-            if pos_x1_free:
+            if self.vision.find_template(screen, "templates/btn_summon_x1_free.png", threshold=0.9):
                 encontrado = True
             else:
                 pos_arrow = self.vision.find_template(screen, "templates/btn_summon_arrow_left.png", threshold=0.9)
                 if pos_arrow:
-                    self.device.tap(int(pos_arrow[0]), int(pos_arrow[1]))
+                    self.device.tap(pos_arrow[0], pos_arrow[1])
                     time.sleep(1.5)
                 intentos += 1
 
         if encontrado:
-            print("  [>] Tirando summons gratis...")
             screen = self.device.screenshot()
             pos_chest = self.vision.find_template(screen, "templates/btn_friend_chest.png", threshold=0.9)
             if pos_chest:
-                print("   [+] Cofre detectado.")
-                self.device.tap(int(pos_chest[0]), int(pos_chest[1]))
+                self.device.tap(pos_chest[0], pos_chest[1])
                 time.sleep(1)
                 self.clear_loot_windows()
 
             screen = self.device.screenshot()
             pos_x1 = self.vision.find_template(screen, "templates/btn_summon_x1_free.png", threshold=0.9)
             if pos_x1:
-                print("   [+] Lanzando Invocación x1...")
-                self.device.tap(int(pos_x1[0]), int(pos_x1[1]))
+                log.info("  [+] Invocación x1...")
+                self.device.tap(pos_x1[0], pos_x1[1])
                 self._limpiar_invocacion()
 
             screen = self.device.screenshot()
             pos_x10 = self.vision.find_template(screen, "templates/btn_summon_x10_free.png", threshold=0.9)
             if pos_x10:
-                print("   [+] Lanzando Invocación x10...")
-                self.device.tap(int(pos_x10[0]), int(pos_x10[1]))
+                log.info("  [+] Invocación x10...")
+                self.device.tap(pos_x10[0], pos_x10[1])
                 self._limpiar_invocacion()
 
-        screen = self.device.screenshot()
-        pos_back_summon = self.vision.find_template(screen, "templates/btn_back_summon.png", threshold=0.9)
-        if pos_back_summon:
-            print("  [🏠] Saliendo del menú de invocaciones...")
-            self.device.tap(int(pos_back_summon[0]), int(pos_back_summon[1]))
-            time.sleep(3)
-        else:
+        # Salida forzada al Home
+        intentos_salida = 0
+        while intentos_salida < 5:
+            screen = self.device.screenshot()
+            if self.vision.find_template(screen, "templates/btn_home_nav.png", threshold=0.9):
+                break
             self.cerrar_ventana(screen)
+            time.sleep(2)
+            intentos_salida += 1
 
         self.return_to_home()
 
     def do_spend_mana(self):
-        print("\n [💧] Modulo: Gastar Maná (Sweep Dinámico de Eventos)")
-
-        # Leemos la pantalla principal en busca de todos los eventos activos
+        log.info("💧 Módulo: Sweep de Eventos")
         screen = self.device.screenshot()
         eventos = self.vision.find_all_templates(screen, "templates/label_ends_in.png", threshold=0.8)
 
         if not eventos:
-            print("  ❌ No se encontraron banners de eventos activos bajo Battalion Warfare.")
+            log.warning("No se encontraron banners de eventos activos.")
             return
 
-        # Ordenar los eventos detectados de arriba hacia abajo
-        eventos.sort(key=lambda pos: pos[1])
+        eventos.sort(key=lambda p: p[1])
         mana_agotado = False
 
         for idx, pos_evento in enumerate(eventos):
             if mana_agotado:
-                print("  [💧] El maná se agotó. Deteniendo barrido en otros eventos.")
+                log.info("Maná agotado. Deteniendo barrido.")
                 break
 
-            print(f"\n  [>] Entrando al evento activo #{idx + 1} de la lista...")
-            self.device.tap(int(pos_evento[0]), int(pos_evento[1]))
+            log.info("  [>] Evento #%d...", idx + 1)
+            self.device.tap(pos_evento[0], pos_evento[1])
             time.sleep(4)
 
-            etapas = ["stage_ex_10.png", "stage_ex_9.png", "stage_ex_8.png"]
             etapa_encontrada = False
-
-            for etapa in etapas:
-                screen_evento = self.device.screenshot()
-                pos_stage = self.vision.find_template(screen_evento, f"templates/{etapa}", threshold=0.95)
-                if pos_stage:
-                    print(f"  [🔍] Etapa de mayor nivel detectada: {etapa.replace('.png', '')}")
-                    self.device.tap(int(pos_stage[0]), int(pos_stage[1]))
+            for etapa in ["stage_ex_10.png", "stage_ex_9.png", "stage_ex_8.png"]:
+                screen = self.device.screenshot()
+                pos_s = self.vision.find_template(screen, f"templates/{etapa}", threshold=0.95)
+                if pos_s:
+                    log.info("  🔍 Etapa: %s", etapa.replace(".png", ""))
+                    self.device.tap(pos_s[0], pos_s[1])
                     time.sleep(3)
                     etapa_encontrada = True
                     break
 
             if not etapa_encontrada:
-                print("  [i] No hay etapas EX configuradas en este evento o no están desbloqueadas. Saliendo...")
+                log.info("  Sin etapas EX disponibles en este evento.")
                 self.return_to_home()
                 time.sleep(2)
                 continue
 
-            print("  [⏩] Ejecutando Sweeps en bucle hasta que no se pueda más...")
             for i in range(3):
-                screen_sweep = self.device.screenshot()
-                pos_sweep = self.vision.find_template(screen_sweep, "templates/btn_sweep.png", threshold=0.9)
-
+                screen = self.device.screenshot()
+                pos_sweep = self.vision.find_template(screen, "templates/btn_sweep.png", threshold=0.9)
                 if pos_sweep:
-                    self.device.tap(int(pos_sweep[0]), int(pos_sweep[1]))
+                    self.device.tap(pos_sweep[0], pos_sweep[1])
                     time.sleep(1.5)
-
                     if self.check_and_recover_mana():
-                        self.device.tap(int(pos_sweep[0]), int(pos_sweep[1]))
+                        self.device.tap(pos_sweep[0], pos_sweep[1])
                         time.sleep(1.5)
-
-                    print(f"   [+] Sweep múltiple completado (Set #{i + 1}).")
+                    log.info("  [+] Sweep #%d completado.", i + 1)
                     time.sleep(2)
                     self.clear_loot_windows()
                 else:
-                    print("   [!] Botón Sweep no detectado. Probablemente te quedaste sin maná.")
+                    log.warning("  Botón Sweep no detectado. Maná agotado.")
                     mana_agotado = True
                     break
 
-            print(f"  [🏠] Saliendo del evento #{idx + 1}...")
             for _ in range(2):
                 self.cerrar_ventana()
 
@@ -662,75 +671,65 @@ class DailyMissions:
             time.sleep(2)
 
     def claim_all_rewards(self):
-        print("\n [🎁] Modulo: Reclamar Recompensas")
-        screen = self.device.screenshot()
-        pos_arrow_down = self.vision.find_template(screen, "templates/btn_menu_arrow_down.png", threshold=0.9)
-        if pos_arrow_down:
-            self.device.tap(int(pos_arrow_down[0]), int(pos_arrow_down[1]))
-            time.sleep(1.5)
+        log.info("🎁 Módulo: Reclamar Recompensas")
 
+        def _abrir_menu():
+            screen = self.device.screenshot()
+            pos = self.vision.find_template(screen, "templates/btn_menu_arrow_down.png", threshold=0.9)
+            if pos:
+                self.device.tap(pos[0], pos[1])
+                time.sleep(1.5)
+
+        # Buzón
+        _abrir_menu()
         screen = self.device.screenshot()
         pos_mail = self.vision.find_template(screen, "templates/btn_mailbox_icon.png", threshold=0.9)
         if pos_mail:
-            self.device.tap(int(pos_mail[0]), int(pos_mail[1]))
+            self.device.tap(pos_mail[0], pos_mail[1])
             time.sleep(2)
-
             screen = self.device.screenshot()
             pos_claim = self.vision.find_template(screen, "templates/btn_claim_all.png", threshold=0.9)
             if pos_claim:
-                self.device.tap(int(pos_claim[0]), int(pos_claim[1]))
+                self.device.tap(pos_claim[0], pos_claim[1])
                 time.sleep(2)
                 self.clear_loot_windows()
-
             self.cerrar_ventana()
 
-        screen = self.device.screenshot()
-        pos_arrow_down = self.vision.find_template(screen, "templates/btn_menu_arrow_down.png", threshold=0.9)
-        if pos_arrow_down:
-            self.device.tap(int(pos_arrow_down[0]), int(pos_arrow_down[1]))
-            time.sleep(1.5)
-
+        # Misiones diarias
+        _abrir_menu()
         screen = self.device.screenshot()
         pos_missions = self.vision.find_template(screen, "templates/btn_missions_icon.png", threshold=0.9)
         if pos_missions:
-            self.device.tap(int(pos_missions[0]), int(pos_missions[1]))
+            self.device.tap(pos_missions[0], pos_missions[1])
             time.sleep(2)
-
             screen = self.device.screenshot()
-            pos_tab_daily = self.vision.find_template(screen, "templates/tab_daily.png", threshold=0.9)
-            if pos_tab_daily:
-                self.device.tap(int(pos_tab_daily[0]), int(pos_tab_daily[1]))
+            pos_tab = self.vision.find_template(screen, "templates/tab_daily.png", threshold=0.9)
+            if pos_tab:
+                self.device.tap(pos_tab[0], pos_tab[1])
                 time.sleep(1.5)
 
-            print("  [>] Iniciando barrido total de misiones y cofres...")
+            log.debug("Barrido de misiones y cofres...")
             intentos_vacios = 0
             while intentos_vacios < 2:
-                algo_reclamado = False
+                algo = False
                 screen = self.device.screenshot()
-
                 pos_claim = self.vision.find_template(screen, "templates/btn_claim_all.png", threshold=0.9)
                 if pos_claim:
-                    print("   [+] Misiones listas. Reclamando...")
-                    self.device.tap(int(pos_claim[0]), int(pos_claim[1]))
+                    self.device.tap(pos_claim[0], pos_claim[1])
                     time.sleep(2)
                     self.clear_loot_windows()
-                    algo_reclamado = True
-
-                if not algo_reclamado:
+                    algo = True
+                if not algo:
                     pos_chest = self.vision.find_template(screen, "templates/chest_ready.png", threshold=0.9)
                     if pos_chest:
-                        print("   [+] Cofre listo. Reclamando...")
-                        self.device.tap(int(pos_chest[0]), int(pos_chest[1]))
+                        self.device.tap(pos_chest[0], pos_chest[1])
                         time.sleep(2)
                         self.clear_loot_windows()
-                        algo_reclamado = True
-
-                if algo_reclamado:
-                    intentos_vacios = 0
-                else:
-                    intentos_vacios += 1
+                        algo = True
+                intentos_vacios = 0 if algo else intentos_vacios + 1
+                if not algo:
                     time.sleep(1.5)
 
-            print("  [✅] Barrido completado. No se quedó nada atrás.")
+            log.info("  ✅ Barrido completado.")
 
         self.return_to_home()

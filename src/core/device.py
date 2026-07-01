@@ -1,75 +1,108 @@
-import uiautomator2 as u2
-import subprocess
+"""
+core/device.py
+Abstracción del dispositivo ADB (POCO X5 Pro / uiautomator2).
+Incluye lógica de reconexión automática para cuando ADB se interrumpe
+en medio de una rutina (cable suelto, USB sleep, reset del demonio ADB).
+"""
 import time
-import random
+import uiautomator2 as u2
 from PIL import Image
 
+from core.config import DEVICE_SERIAL, APP_PACKAGE
+from core.logger import get_logger
+
+log = get_logger("device")
+
+_MAX_RECONNECT = 3
+_RECONNECT_WAIT = 6  # segundos entre reintentos de reconexión
+
+
 class Device:
-    def __init__(self, serial=None):
-        # El 'serial' ahora puede ser un ID de USB o una IP (ej: "192.168.1.15:5555")
+    def __init__(self, serial: str = DEVICE_SERIAL):
         self.serial = serial
-        self.d = None
+        self.d: u2.Device | None = None
 
-    def connect(self):
-        """Conecta al dispositivo Android (Vía USB o Inalámbrico)"""
-        # Si no le pasamos IP al iniciar, busca lo que esté conectado
-        if not self.serial:
-            self.serial = self.get_serial()
-
-        # Si después de buscar sigue sin haber nada, lanzamos alerta
-        if not self.serial:
-            print(" ❌ No se detectó dispositivo. ¿Estás conectado al Wi-Fi e hiciste 'adb connect IP'?")
-            return False
-
+    # ──────────────────────────────────────────
+    # CONEXIÓN Y RECONEXIÓN
+    # ──────────────────────────────────────────
+    def connect(self) -> bool:
+        """Conecta al dispositivo por primera vez. Retorna True si tuvo éxito."""
         try:
-            print(f" [🔌] Intentando conectar a: {self.serial}...")
+            log.info("Conectando al dispositivo %s...", self.serial)
             self.d = u2.connect(self.serial)
-            info = self.d.device_info
-            # uiautomator2 a veces devuelve 'marketName' o 'model'
-            nombre_tel = info.get('marketName', info.get('model', 'Desconocido'))
-            print(f" [✅] Conectado: {nombre_tel} | Resolución: {self.d.window_size()}")
+            self.d.implicitly_wait(5)
+            info = self.d.info
+            log.info(
+                "✅ Conexión ADB exitosa. Pantalla: %dx%d",
+                info.get("displayWidth", 0),
+                info.get("displayHeight", 0),
+            )
             return True
         except Exception as e:
-            print(f" ❌ Error conectando: {e}")
+            log.error("❌ No se pudo conectar al dispositivo: %s", e)
             return False
 
-    def screenshot(self, save_path=None):
-        """Toma screenshot y lo retorna como imagen"""
-        screen = self.d.screenshot()
-        if save_path:
-            screen.save(save_path)
-        return screen
-
-    def tap(self, x, y, variance=10):
-        """Tap con variación aleatoria para no ser tan predecible"""
-        rx = x + random.randint(-variance, variance)
-        ry = y + random.randint(-variance, variance)
-        self.d.click(rx, ry)
-        time.sleep(random.uniform(0.3, 0.8))
-
-    def swipe(self, x1, y1, x2, y2, duration=0.5):
-        """Swipe entre dos puntos"""
-        self.d.swipe(x1, y1, x2, y2, duration)
-        time.sleep(random.uniform(0.3, 0.6))
-
-    def is_app_running(self, package="com.zigzagame.evertale"):
-        """Verifica si Evertale está abierto"""
-        current = self.d.app_current()
-        return current['package'] == package
-
-    def open_app(self, package="com.zigzagame.evertale"):
-        """Abre Evertale si no está abierto"""
-        if not self.is_app_running(package):
-            print(" [📱] Abriendo Evertale...")
-            self.d.app_start(package)
-            time.sleep(5)
-
-    def get_serial(self):
-        """Obtiene el serial del dispositivo conectado por adb"""
-        result = subprocess.run(
-            ["adb", "devices"],
-            capture_output=True, text=True
+    def _reconnect(self) -> bool:
+        """
+        Intenta reconectar al dispositivo hasta _MAX_RECONNECT veces.
+        Se llama automáticamente cuando screenshot() o tap() fallan.
+        """
+        for intento in range(1, _MAX_RECONNECT + 1):
+            log.warning(
+                "⚡ Reconexión ADB — intento %d/%d...", intento, _MAX_RECONNECT
+            )
+            time.sleep(_RECONNECT_WAIT)
+            try:
+                self.d = u2.connect(self.serial)
+                self.d.implicitly_wait(5)
+                log.info("✅ Reconexión exitosa en el intento %d.", intento)
+                return True
+            except Exception as e:
+                log.error("Reconexión fallida: %s", e)
+        log.critical(
+            "💀 No se pudo reconectar al dispositivo tras %d intentos.", _MAX_RECONNECT
         )
-        lines = result.stdout.strip().split("\n")[1:]
-        devices = [l.split("\t")[0] for l in lines if "device" in l]
-        return devices[0] if devices else None
+        return False
+
+    # ──────────────────────────────────────────
+    # OPERACIONES CON RETRY AUTOMÁTICO
+    # ──────────────────────────────────────────
+    def screenshot(self) -> Image.Image:
+        """
+        Toma un screenshot y lo retorna como imagen PIL.
+        Si falla por desconexión ADB, intenta reconectar y reintentar.
+        """
+        for intento in range(_MAX_RECONNECT):
+            try:
+                return self.d.screenshot(format="pillow")
+            except Exception as e:
+                log.warning("Error en screenshot (intento %d): %s", intento + 1, e)
+                if not self._reconnect():
+                    raise RuntimeError("Dispositivo ADB no disponible tras reconexión.") from e
+        raise RuntimeError("No se pudo tomar screenshot.")
+
+    def tap(self, x: int | float, y: int | float):
+        """Toca las coordenadas indicadas con retry automático ante desconexión."""
+        for intento in range(_MAX_RECONNECT):
+            try:
+                self.d.click(int(x), int(y))
+                return
+            except Exception as e:
+                log.warning("Error en tap(%s,%s) — intento %d: %s", x, y, intento + 1, e)
+                if not self._reconnect():
+                    raise RuntimeError("Dispositivo ADB no disponible.") from e
+
+    # ──────────────────────────────────────────
+    # APP
+    # ──────────────────────────────────────────
+    def open_app(self):
+        """Abre Evertale. Si falla, intenta reconectar primero."""
+        try:
+            self.d.app_start(APP_PACKAGE)
+            log.debug("App iniciada: %s", APP_PACKAGE)
+        except Exception as e:
+            log.warning("Error al abrir app: %s. Reconectando...", e)
+            if self._reconnect():
+                self.d.app_start(APP_PACKAGE)
+            else:
+                raise RuntimeError("No se pudo abrir la app tras reconexión.") from e
