@@ -1,6 +1,6 @@
 {
   "Version": 23,
-  "Time": 1781859397,
+  "Time": 1782120409,
   "Ability": [
     {
       "name": "SkipTurn",
@@ -29918,6 +29918,64 @@
       ],
       "config": "AllAttackAManchesterRegularBoss",
       "tuCost": 100,
+      "useLimit": 0,
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackAJeanneFusion",
+      "class": "Ability",
+      "abilityScalor": 2,
+      "conditionalAbilityScalors": [
+        5,
+        8
+      ],
+      "config": "SingleAttackAJeanneFusion",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllyBuffAJeanneFusion",
+      "class": "Ability",
+      "config": "AllyBuffAJeanneFusion",
+      "tuCost": 2,
+      "useLimit": 0,
+      "spiritGain": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "EnemyBuffAJeanneFusion01",
+      "class": "Ability",
+      "config": "EnemyBuffAJeanneFusion01",
+      "tuCost": 50,
+      "useLimit": 1,
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "EnemyBuffAJeanneFusion02",
+      "class": "Ability",
+      "config": "EnemyBuffAJeanneFusion02",
+      "tuCost": 50,
+      "useLimit": 1,
+      "nameKey": "EnemyBuffAJeanneFusion01",
+      "descriptionKey": "EnemyBuffAJeanneFusion01",
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllAttackAJeanneFusion",
+      "class": "Ability",
+      "abilityScalor": 6,
+      "config": "AllAttackAJeanneFusion",
+      "tuCost": 75,
       "useLimit": 0,
       "spiritCost": 3,
       "blockTargetManipulation": 0,
