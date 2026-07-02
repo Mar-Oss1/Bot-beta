@@ -18,7 +18,7 @@ def probar_ocr_gemas():
     img = cv2.imread(screen_path)
 
     # 2.coordenadas de prueba
-    X, Y, W, H = 1315, 50, 320, 60
+    X, Y, W, H = 1315, 15, 240, 50
 
     # 3. Recortar
     roi = img[Y:Y + H, X:X + W]
