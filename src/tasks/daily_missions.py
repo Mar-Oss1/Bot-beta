@@ -16,6 +16,7 @@ class DailyMissions:
     """
     Recibe el objeto Account y Database para registrar el progreso
     directamente en accounts.json después de cada módulo, sin archivo auxiliar.
+    y poco mas
     """
 
     def __init__(self, device, vision, account, db):
