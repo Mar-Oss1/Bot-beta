@@ -16,7 +16,7 @@ class DailyMissions:
     """
     Recibe el objeto Account y Database para registrar el progreso
     directamente en accounts.json después de cada módulo, sin archivo auxiliar.
-    y poco mas
+    y poco más
     """
 
     def __init__(self, device, vision, account, db):
@@ -112,6 +112,7 @@ class DailyMissions:
             "templates/rewards.png",
             "templates/victory_banner.png",
             "templates/defeat_banner.png",
+            "templates/summon_chest_loot.png",
         ]
         intentos = 0
         while intentos < 5:
@@ -142,7 +143,7 @@ class DailyMissions:
         intentos = 0
         while intentos < 8:
             screen = self.device.screenshot()
-            pos_ok = self.vision.find_template(screen, "templates/btn_result_ok.png", threshold=0.75)
+            pos_ok = self.vision.find_template(screen, "templates/btn_skip_ok.png", threshold=0.75)
             pos_rw = self.vision.find_template(screen, "templates/rewards.png", threshold=0.75)
 
             if pos_ok:
@@ -167,6 +168,31 @@ class DailyMissions:
         if pos:
             self.device.tap(pos[0], pos[1])
             time.sleep(3)
+
+        MAX_LIMPIEZA = 6
+        for _ in range(MAX_LIMPIEZA):
+            screen = self.device.screenshot()
+            algo = False
+
+            # 1. Botón claim genérico (eventos, ofertas reclamables)
+            pos_claim = self.vision.find_template(screen, "templates/btn_claim.png", threshold=0.8)
+            if pos_claim:
+                log.debug("  [🧹] Banner reclamable en home. Cerrando...")
+                self.device.tap(pos_claim[0], pos_claim[1])
+                time.sleep(2)
+                algo = True
+
+            # 2. Botón X (anuncios, popups de oferta)
+            if not algo:
+                pos_x = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
+                if pos_x:
+                    log.debug("  [🧹] Popup con X en home. Cerrando...")
+                    self.device.tap(pos_x[0], pos_x[1])
+                    time.sleep(2)
+                    algo = True
+
+            if not algo:
+                break  # home limpio, salimos
 
     def handle_battle_sequence(self) -> str:
         time.sleep(2.5)
@@ -316,25 +342,182 @@ class DailyMissions:
         self.return_to_home()
         self._completar_modulo("fountain")
 
-    def do_premium_summons(self):
-        log.info("🌠 Módulo: Invocación Premium")
-        screen = self.device.screenshot()
-        pos_x10 = self.vision.find_template(screen, "templates/btn_summon_x10.png", threshold=0.8)
-        if not pos_x10:
-            log.error("No se encontró el botón x10. ¿Estás en el banner correcto?")
-            return
-
-        self.device.tap(pos_x10[0], pos_x10[1])
-        time.sleep(1.5)
+    def _detectar_ssr(self) -> bool:
+        import cv2
+        import numpy as np
 
         screen = self.device.screenshot()
-        pos_confirm = self.vision.find_template(screen, "templates/btn_confirm_summon.png", threshold=0.8)
-        if pos_confirm:
+        img = cv2.cvtColor(np.array(screen), cv2.COLOR_RGB2BGR)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Brillo promedio de la pantalla completa
+        brillo_promedio = float(np.mean(gray))
+
+        # Umbral: pantalla SSR es notablemente más oscura que una normal
+        # Ajusta UMBRAL_SSR si da falsos positivos (sube) o no detecta (baja)
+        UMBRAL_SSR = 10.0
+        es_ssr = brillo_promedio < UMBRAL_SSR
+
+        if es_ssr:
+            log.info("  [⭐] SSR detectado! Brillo promedio: %.1f (umbral: %.1f)", brillo_promedio, UMBRAL_SSR)
+        else:
+            log.debug("  Brillo promedio: %.1f — sin SSR.", brillo_promedio)
+
+        return es_ssr
+
+    def _manejar_animacion_ssr(self):
+        """
+        Maneja la secuencia de animación cuando sale un SSR:
+        1. Toca para que aparezca el personaje
+        2. Espera la animación
+        3. Toca Skip para continuar
+        """
+        log.info("  [⭐] Manejando animación SSR...")
+
+        # Tap para que aparezca el personaje
+        self.device.tap(760, 1200)
+        time.sleep(2)
+
+        # Buscar Skip tras la aparición del personaje
+        for _ in range(8):
+            screen = self.device.screenshot()
+            pos_skip = self.vision.find_template(
+                screen, "templates/btn_skip_summon.png", threshold=0.7
+            )
+            if pos_skip:
+                log.info("  [✓] Skip encontrado tras animación SSR.")
+                self.device.tap(pos_skip[0], pos_skip[1])
+                time.sleep(2.5)
+                return
+            self.device.tap(760, 1200)
+            time.sleep(0.5)
+
+        log.warning("  Skip no encontrado tras SSR. Esperando animación natural...")
+        time.sleep(5)
+
+    def do_premium_summons(self, veces: int = 1, parar_sin_ssr: int = 0):
+        """
+        Ejecuta invocaciones premium x10 con detección de SSR.
+
+        Args:
+            veces: cuántas veces ejecutar la invocación (default 1)
+            parar_sin_ssr: si > 0, para automáticamente si no sale SSR
+                           en ese número de rondas consecutivas (0 = desactivado)
+        """
+        log.info("🌠 Módulo: Invocación Premium (%d vez/veces | parar sin SSR: %s)",
+                 veces, f"cada {parar_sin_ssr}" if parar_sin_ssr > 0 else "desactivado")
+
+        rondas_sin_ssr = 0
+        ssr_total = 0
+
+        for ronda in range(1, veces + 1):
+            log.info("  ── Ronda %d/%d | SSR acumulados: %d | Sin SSR consecutivos: %d ──",
+                     ronda, veces, ssr_total, rondas_sin_ssr)
+
+            # ── Verificar límite de rondas sin SSR ────────────────────────
+            if parar_sin_ssr > 0 and rondas_sin_ssr >= parar_sin_ssr:
+                log.info("  [🛑] %d rondas consecutivas sin SSR. Deteniendo según configuración.",
+                         rondas_sin_ssr)
+                break
+
+            # ── 1. Buscar y tocar el botón x10 ────────────────────────────
+            screen = self.device.screenshot()
+            pos_x10 = self.vision.find_template(screen, "templates/btn_summon_x10.png", threshold=0.8)
+            if not pos_x10:
+                log.error("  No se encontró btn_summon_x10. Abortando.")
+                return
+
+            self.device.tap(pos_x10[0], pos_x10[1])
+            time.sleep(1.5)
+
+            # ── 2. Confirmar la invocación ─────────────────────────────────
+            screen = self.device.screenshot()
+            pos_confirm = self.vision.find_template(screen, "templates/btn_confirm_summon.png", threshold=0.8)
+            if not pos_confirm:
+                log.error("  No apareció confirmación. Saltando ronda %d.", ronda)
+                continue
+
             log.info("  [+] Confirmando invocación...")
             self.device.tap(pos_confirm[0], pos_confirm[1])
-            self._limpiar_invocacion()
-        else:
-            log.error("No apareció la ventana de confirmación.")
+            time.sleep(2)
+
+            # ── 3. Acelerar animación tocando hasta ver Skip ───────────────
+            log.info("  [⏩] Acelerando animación...")
+            MAX_TAPS_ANIM = 20
+            ssr_en_esta_ronda = False
+            skip_encontrado = False
+
+            for tap_num in range(MAX_TAPS_ANIM):
+                screen = self.device.screenshot()
+
+                # Verificar SSR antes de buscar Skip
+                if self._detectar_ssr():
+                    ssr_en_esta_ronda = True
+                    ssr_total += 1
+                    self._manejar_animacion_ssr()
+                    skip_encontrado = True
+                    break
+
+                pos_skip = self.vision.find_template(
+                    screen, "templates/btn_skip_summon.png", threshold=0.7
+                )
+                if pos_skip:
+                    log.info("  [✓] Skip encontrado tras %d taps.", tap_num)
+                    self.device.tap(pos_skip[0], pos_skip[1])
+                    time.sleep(2.5)
+                    skip_encontrado = True
+                    break
+
+                self.device.tap(1300, 500)
+                time.sleep(0.4)
+
+            if not skip_encontrado:
+                log.warning("  Skip no apareció tras %d taps. Esperando...", MAX_TAPS_ANIM)
+                time.sleep(4)
+
+            # ── 4. Actualizar contador de rondas sin SSR ──────────────────
+            if ssr_en_esta_ronda:
+                rondas_sin_ssr = 0
+                log.info("  [⭐] SSR en esta ronda. Contador sin SSR reiniciado.")
+            else:
+                rondas_sin_ssr += 1
+                log.info("  [·] Sin SSR esta ronda (%d consecutivas).", rondas_sin_ssr)
+
+            # ── 5. Buscar OK post-animación ────────────────────────────────
+            log.info("  [🆗] Buscando botón OK...")
+            ok_encontrado = False
+            for intento in range(6):
+                screen = self.device.screenshot()
+                pos_ok = self.vision.find_template(
+                    screen, "templates/btn_skip_ok.png", threshold=0.75
+                )
+                if pos_ok:
+                    log.info("  [✓] OK encontrado.")
+                    self.device.tap(pos_ok[0], pos_ok[1])
+                    time.sleep(2)
+                    ok_encontrado = True
+                    break
+                time.sleep(1)
+
+            if not ok_encontrado:
+                log.warning("  OK no encontrado. Cerrando con tap genérico...")
+                self.device.tap(100, 100)
+                time.sleep(1.5)
+
+            # ── 6. Limpiar loot ────────────────────────────────────────────
+            log.info("  [🧹] Limpiando pantalla de loot...")
+            self.clear_loot_windows()
+            time.sleep(1)
+
+            log.info("  [✅] Ronda %d/%d completada.", ronda, veces)
+            time.sleep(1)
+
+        log.info("━" * 40)
+        log.info("🌠 Invocación Premium finalizada.")
+        log.info("   Rondas ejecutadas : %d/%d", min(ronda, veces), veces)
+        log.info("   SSR obtenidos     : %d", ssr_total)
+        log.info("   Rondas sin SSR    : %d consecutivas al final", rondas_sin_ssr)
+        log.info("━" * 40)
 
     def do_tower_of_trials(self):
         log.info("🗼 Módulo: Tower of Trials")
@@ -774,4 +957,34 @@ class DailyMissions:
             time.sleep(2)
 
         log.info("  ✅ Módulo de recompensas completado con éxito.")
+
+        # ── Limpieza de banners antes de volver al home ────────────────────
+        # Igual que en startup: reclamar y cerrar cualquier popup intrusivo
+        log.info("  [🧹] Limpiando banners post-misiones antes de volver al Home...")
+        MAX_LIMPIEZA = 6
+        for _ in range(MAX_LIMPIEZA):
+            screen = self.device.screenshot()
+            algo = False
+
+            # 1. Botón de claim genérico (ofertas, eventos)
+            pos_claim = self.vision.find_template(screen, "templates/btn_claim.png", threshold=0.8)
+            if pos_claim:
+                log.debug("    [+] Banner reclamable detectado. Cerrando...")
+                self.device.tap(pos_claim[0], pos_claim[1])
+                time.sleep(2)
+                algo = True
+
+            # 2. Botón de cerrar X (anuncios, ofertas)
+            if not algo:
+                pos_x = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
+                if pos_x:
+                    log.debug("    [-] Popup con X detectado. Cerrando...")
+                    self.device.tap(pos_x[0], pos_x[1])
+                    time.sleep(2)
+                    algo = True
+
+            if not algo:
+                log.debug("    [✓] Sin banners detectados. Limpieza completa.")
+                break
+
         self.return_to_home()

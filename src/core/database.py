@@ -2,51 +2,62 @@ import json
 import os
 from datetime import datetime, date
 
-# 1. Obtener la ruta exacta de este archivo (database.py)
-current_dir = os.path.dirname(os.path.abspath(__file__))
+ACCOUNTS_FILE = "accounts/accounts.json"
+PROGRESS_FILE = "accounts/progress.json"
 
-# 2. Subir niveles hasta llegar a la carpeta raíz "evertale-bot"
-project_root = os.path.dirname(os.path.dirname(current_dir))
 
-# 3. Construir la ruta a prueba de fallos hacia accounts/accounts.json
-ACCOUNTS_FILE = os.path.join(project_root, "accounts", "accounts.json")
-
+# ══════════════════════════════════════════════════════════════════════════════
+# MODELO DE CUENTA
+# ══════════════════════════════════════════════════════════════════════════════
 
 class Account:
-    def __init__(self, data: dict):
-        self.id = data.get("id")
-        self.name = data.get("name")
-        self.serial = data.get("serial")
-        self.enabled = data.get("enabled", True)
-        self.priority = data.get("priority", 1)
-        self.progress = data.get("progress", {})
-        self.last_run = data.get("last_run")
-        self.notes = data.get("notes", "")
-        self.servers = data.get("servers", [])
+    def __init__(self, config: dict, progress_data: dict = None):
+        # ── Configuración fija (viene de accounts.json) ────────────────────
+        self.id       = config.get("id")
+        self.name     = config.get("name")
+        self.serial   = config.get("serial")
+        self.enabled  = config.get("enabled", True)
+        self.priority = config.get("priority", 1)
+        self.notes    = config.get("notes", "")
+        self.servers  = config.get("servers", [])
 
-    def to_dict(self):
+        # ── Estado mutable (viene de progress.json) ────────────────────────
+        p = progress_data or {}
+        self.progress = p.get("days", {})
+        self.last_run = p.get("last_run")
+
+    # ── Serialización separada ─────────────────────────────────────────────
+
+    def to_config(self) -> dict:
+        """Solo la configuración fija → accounts.json"""
         return {
-            "id": self.id,
-            "name": self.name,
-            "serial": self.serial,
-            "enabled": self.enabled,
+            "id":       self.id,
+            "name":     self.name,
+            "serial":   self.serial,
+            "enabled":  self.enabled,
             "priority": self.priority,
-            "progress": self.progress,
-            "last_run": self.last_run,
-            "notes": self.notes,
-            "servers": self.servers
+            "notes":    self.notes,
+            "servers":  self.servers,
         }
 
+    def to_progress(self) -> dict:
+        """Solo el estado mutable → progress.json"""
+        return {
+            "last_run": self.last_run,
+            "days":     self.progress,
+        }
+
+    # ── Lógica de progreso ─────────────────────────────────────────────────
+
     def get_today_progress(self, server_id=None):
-        """Retorna el progreso de hoy (soporta opcionalmente server_id)"""
         today = str(date.today())
         day_data = self.progress.get(today, {})
 
         default_tasks = {
             "daily_missions": False,
-            "events": False,
-            "story": False,
-            "login_bonus": False
+            "events":         False,
+            "story":          False,
+            "login_bonus":    False,
         }
 
         if server_id:
@@ -55,7 +66,7 @@ class Account:
         return day_data if day_data else default_tasks
 
     def mark_task_done(self, task_name, server_id=None):
-        """Marca una tarea como completada hoy, separando por servidor si es necesario"""
+        """Marca una tarea como completada hoy"""
         today = str(date.today())
         if today not in self.progress:
             self.progress[today] = {}
@@ -70,11 +81,9 @@ class Account:
         self.last_run = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     def is_task_done(self, task_name, server_id=None):
-        """Verifica si una tarea ya se completó hoy en un servidor específico"""
         return self.get_today_progress(server_id).get(task_name, False)
 
     def pending_tasks(self, server_id=None):
-        """Lista de tareas pendientes hoy. Si tiene servidores, desglosa por servidor."""
         all_tasks = ["login_bonus", "daily_missions", "events", "story"]
 
         if server_id:
@@ -86,135 +95,176 @@ class Account:
             for s in self.servers:
                 sid = s["server_id"]
                 tp = self.get_today_progress(sid)
-                srv_pending = [f"{t} ({sid})" for t in all_tasks if not tp.get(t, False)]
-                pending.extend(srv_pending)
+                pending.extend(
+                    [f"{t} ({sid})" for t in all_tasks if not tp.get(t, False)]
+                )
             return pending
-        else:
-            tp = self.get_today_progress()
-            return [t for t in all_tasks if not tp.get(t, False)]
+
+        tp = self.get_today_progress()
+        return [t for t in all_tasks if not tp.get(t, False)]
 
     def completion_percent(self):
-        """Porcentaje de tareas completadas hoy, adaptado para multi-server"""
         all_tasks = ["login_bonus", "daily_missions", "events", "story"]
 
         if self.servers:
-            total_tasks = len(all_tasks) * len(self.servers)
-            done = 0
-            for s in self.servers:
-                tp = self.get_today_progress(s["server_id"])
-                done += sum(1 for t in all_tasks if tp.get(t, False))
-            return int((done / total_tasks) * 100) if total_tasks > 0 else 0
-        else:
-            tp = self.get_today_progress()
-            done = sum(1 for t in all_tasks if tp.get(t, False))
-            return int((done / len(all_tasks)) * 100)
+            total = len(all_tasks) * len(self.servers)
+            done = sum(
+                sum(1 for t in all_tasks if self.get_today_progress(s["server_id"]).get(t, False))
+                for s in self.servers
+            )
+            return int((done / total) * 100) if total > 0 else 0
 
+        tp = self.get_today_progress()
+        done = sum(1 for t in all_tasks if tp.get(t, False))
+        return int((done / len(all_tasks)) * 100)
 
     def mark_login_failed(self):
-        """Registra un fallo de login en el progreso de hoy."""
         today = str(date.today())
         if today not in self.progress:
             self.progress[today] = {}
-
-        # Incrementamos el contador de fallos
         fail_count = self.progress[today].get("login_fail_count", 0) + 1
         self.progress[today]["login_failed"] = True
         self.progress[today]["login_fail_count"] = fail_count
         self.last_run = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     def has_failed_too_many_times(self, limit=2):
-        """Verifica si la cuenta ya falló más veces de las permitidas hoy."""
         today = str(date.today())
-        fail_count = self.progress.get(today, {}).get("login_fail_count", 0)
-        return fail_count >= limit
+        return self.progress.get(today, {}).get("login_fail_count", 0) >= limit
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# BASE DE DATOS
+# ══════════════════════════════════════════════════════════════════════════════
 
 class Database:
     def __init__(self):
         self.accounts: list[Account] = []
-        self._ensure_file()
+        self._ensure_files()
         self.load()
 
-    def _ensure_file(self):
-        """Crea el archivo si no existe"""
+    # ── Inicialización ─────────────────────────────────────────────────────
+
+    def _ensure_files(self):
+        """Crea ambos archivos si no existen"""
+        os.makedirs(os.path.dirname(ACCOUNTS_FILE), exist_ok=True)
+
         if not os.path.exists(ACCOUNTS_FILE):
-            os.makedirs(os.path.dirname(ACCOUNTS_FILE), exist_ok=True)
             with open(ACCOUNTS_FILE, "w") as f:
                 json.dump({"accounts": []}, f, indent=2)
 
+        if not os.path.exists(PROGRESS_FILE):
+            with open(PROGRESS_FILE, "w") as f:
+                json.dump({"progress": {}}, f, indent=2)
+
+    # ── Carga ──────────────────────────────────────────────────────────────
+
     def load(self):
-        """Carga las cuentas desde el JSON"""
-        with open(ACCOUNTS_FILE, "r") as f:
-            data = json.load(f)
-        self.accounts = [Account(a) for a in data.get("accounts", [])]
+        """Carga configuración y progreso por separado y los une en Account"""
+        with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
+            config_data = json.load(f)
+
+        with open(PROGRESS_FILE, "r", encoding="utf-8") as f:
+            progress_data = json.load(f).get("progress", {})
+
+        self.accounts = [
+            Account(
+                config=a,
+                progress_data=progress_data.get(str(a["id"]), {})
+            )
+            for a in config_data.get("accounts", [])
+        ]
         print(f"📂 {len(self.accounts)} cuentas cargadas")
 
+    # ── Guardado separado ──────────────────────────────────────────────────
+
+    def save_config(self):
+        """
+        Guarda SOLO la configuración fija en accounts.json.
+        Llamar cuando cambies enabled, priority, serial, servers, etc.
+        """
+        data = {"accounts": [a.to_config() for a in self.accounts]}
+        self._write_safe(ACCOUNTS_FILE, data)
+
+    def save_progress(self):
+        """
+        Guarda SOLO el progreso diario en progress.json.
+        Llamar después de cada tarea completada.
+        """
+        data = {
+            "progress": {
+                str(a.id): a.to_progress()
+                for a in self.accounts
+            }
+        }
+        self._write_safe(PROGRESS_FILE, data)
+
     def save(self):
-        """Guarda el estado actual al JSON"""
-        data = {"accounts": [a.to_dict() for a in self.accounts]}
-        with open(ACCOUNTS_FILE, "w") as f:
+        """
+        Guarda ambos archivos.
+        Mantiene compatibilidad con el código existente que llama db.save().
+        """
+        self.save_config()
+        self.save_progress()
+
+    def _write_safe(self, path: str, data: dict):
+        """
+        Escritura atómica: escribe en .tmp y luego renombra.
+        Si el proceso muere a mitad, el archivo original queda intacto.
+        """
+        tmp_path = path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_path, path)  # atómico en Windows y Linux
+
+    # ── CRUD de cuentas ────────────────────────────────────────────────────
 
     def add_account(self, name, serial=None, priority=1, notes="", servers=None):
-        """Agrega una cuenta nueva (opcionalmente con lista de servidores)"""
+        """Agrega una cuenta nueva"""
         new_id = max([a.id for a in self.accounts], default=0) + 1
-        account_data = {
-            "id": new_id,
-            "name": name,
-            "serial": serial,
+        config = {
+            "id":       new_id,
+            "name":     name,
+            "serial":   serial,
+            "enabled":  True,
             "priority": priority,
-            "notes": notes
+            "notes":    notes,
+            "servers":  servers or [],
         }
-        if servers:
-            account_data["servers"] = servers
-        account = Account(account_data)
+        account = Account(config=config, progress_data={})
         self.accounts.append(account)
         self.save()
         print(f"✅ Cuenta agregada: {name}")
         return account
 
-    def get_account(self, account_id):
-        """Busca una cuenta por ID"""
+    def get_account(self, account_id) -> Account | None:
         for a in self.accounts:
             if a.id == account_id:
                 return a
         return None
 
-    def get_pending_accounts(self):
-        """
-        Retorna cuentas con tareas pendientes hoy,
-        que no hayan superado el límite de fallos de login.
-        """
-        pending = []
-        for a in self.accounts:
-            if not a.enabled:
-                continue
-
-            # Si ya falló demasiadas veces hoy, la ignoramos
-            if a.has_failed_too_many_times(limit=2):
-                continue
-
-            # Si tiene tareas pendientes, la agregamos
-            if len(a.pending_tasks()) > 0:
-                pending.append(a)
-
+    def get_pending_accounts(self) -> list[Account]:
+        """Cuentas con tareas pendientes hoy, ordenadas por prioridad"""
+        pending = [
+            a for a in self.accounts
+            if a.enabled
+            and not a.has_failed_too_many_times(limit=2)
+            and len(a.pending_tasks()) > 0
+        ]
         return sorted(pending, key=lambda a: a.priority)
 
+    # ── Utilidades ─────────────────────────────────────────────────────────
+
     def print_status(self):
-        """Muestra el estado de todas las cuentas"""
         print("\n" + "=" * 70)
         print(f"{'CUENTA':<25} {'%':>4}  {'PENDIENTE'}")
         print("=" * 70)
         for a in self.accounts:
             pct = a.completion_percent()
-            # Limitar la longitud del texto de pendientes para que no rompa la consola si son muchas
             pending_str = ", ".join(a.pending_tasks())
             if len(pending_str) > 35:
                 pending_str = pending_str[:32] + "..."
             elif not pending_str:
                 pending_str = "Todo completo ✅"
-
             bar = "█" * (pct // 10) + "░" * (10 - pct // 10)
             print(f"{a.name:<25} {pct:>3}%  {bar}  {pending_str}")
         print("=" * 70 + "\n")

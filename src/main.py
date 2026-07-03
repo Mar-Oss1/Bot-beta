@@ -67,8 +67,8 @@ def _intentar_login(cuenta, dev: Device, vis: Vision, max_reintentos: int = 3) -
 
 
 def _procesar_servidor(
-    cuenta, db: Database, dev: Device, vis: Vision,
-    server_id: str, es_primer_servidor: bool
+        cuenta, db: Database, dev: Device, vis: Vision,
+        server_id: str, es_primer_servidor: bool
 ):
     """
     Maneja el ciclo completo para un servidor específico:
@@ -186,7 +186,8 @@ def menu_interactivo():
         print(" 5. ⚔️  Rompehielos")
         print(" 6. 📜 Misiones Diarias (Modo Prueba — sin guardar estado)")
         print(" 7. 🎃 Farmeo Evento")
-        print(" 8. ❌ Salir")
+        print(" 8. 💎 Tiradas Premium")
+        print(" 9. ❌ Salir")
         print("=" * 50)
 
         opcion = input(" Selecciona una opción: ").strip()
@@ -217,7 +218,13 @@ def menu_interactivo():
             input(" Asegúrate de estar en el menú del evento y presiona Enter...")
             EventFarm(dev, vis).execute()
 
+
         elif opcion == "8":
+            print("\n--- Invocación Premium (x10) ---")
+            veces = int(input(" ¿Cuántas veces ejecutar? (default 1): ").strip() or "1")
+            DailyMissions(dev, vis, account=None, db=None).do_premium_summons(veces=veces)
+
+        elif opcion == "9":
             log.info("Saliendo del bot.")
             break
 
