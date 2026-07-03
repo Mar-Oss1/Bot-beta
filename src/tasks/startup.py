@@ -74,30 +74,97 @@ class Startup:
 
     def handle_comeback_bonus(self):
         eventos_reclamados = False
+        MAX_SCROLLS = 5
 
-        # Bucle infinito para aspirar TODAS las recompensas de regreso
+        # ── Página 1: Returner's Bonus ─────────────────────────────────────
         while True:
             screen = self.device.screenshot()
             pos_claim = self.vision.find_template(screen, "templates/btn_claim_comeback.png", threshold=0.8)
 
             if pos_claim:
-                print("  [🎁] ¡Evento de Regreso detectado! Dándole clic a Reclamar...")
+                print("  [🎁] Bonus detectado! Reclamando...")
                 self.device.tap(pos_claim[0], pos_claim[1])
-                time.sleep(3)  # Esperamos a que salga la pantalla de loot
+                time.sleep(3)
 
-                # Toques en la esquina superior izquierda (100, 100) para no tocar items
-                print("  [🎁] Tocando la esquina para cerrar el loot...")
+                print("  [🎁] Cerrando loot...")
                 self.device.tap(100, 100)
                 time.sleep(1.5)
-                self.device.tap(100, 100)  # Doble toque por seguridad
+                self.device.tap(100, 100)
                 time.sleep(2)
 
                 eventos_reclamados = True
-            else:
-                # Si ya no hay botones de claim en la pantalla, rompemos el bucle
-                break
 
-        # Si logramos reclamar al menos una cosa, salimos del menú de Regreso
+            else:
+                # Solo scrolleamos si ya reclamamos algo (estamos dentro del menú)
+                if not eventos_reclamados:
+                    break
+
+                scroll_exitoso = False
+                for intento_scroll in range(1, MAX_SCROLLS + 1):
+                    print(f"  [🔄] Scroll #{intento_scroll} buscando más en Bonus...")
+                    self.device.swipe(1840, 740, 1840, 240, duration=0.4)
+                    time.sleep(1.5)
+
+                    screen = self.device.screenshot()
+                    pos_claim = self.vision.find_template(
+                        screen, "templates/btn_claim_comeback.png", threshold=0.8
+                    )
+
+                    if pos_claim:
+                        print("  [🎁] Claim encontrado tras scroll! Reclamando...")
+                        self.device.tap(pos_claim[0], pos_claim[1])
+                        time.sleep(3)
+                        self.device.tap(100, 100)
+                        time.sleep(1.5)
+                        self.device.tap(100, 100)
+                        time.sleep(2)
+                        eventos_reclamados = True
+                        scroll_exitoso = True
+                        break
+
+                if not scroll_exitoso:
+                    print(f"  [i] Bonus agotado tras {MAX_SCROLLS} scrolls.")
+                    break
+
+        # ── Página 2: Returner's Pass ──────────────────────────────────────
+        if eventos_reclamados:
+            print("  [📋] Navegando a Returner's Pass...")
+            screen = self.device.screenshot()
+            pos_pass = self.vision.find_template(
+                screen, "templates/btn_returner_pass.png", threshold=0.8
+            )
+
+            if pos_pass:
+                self.device.tap(pos_pass[0], pos_pass[1])
+                time.sleep(2)
+                for intento_scroll in range(MAX_SCROLLS + 1):
+                    screen = self.device.screenshot()
+                    pos_claim = self.vision.find_template(
+                        screen, "templates/btn_claim_comeback.png", threshold=0.8
+                    )
+
+                    if pos_claim:
+                        print("  [🎁] Pass: Claim encontrado! Reclamando...")
+                        self.device.tap(pos_claim[0], pos_claim[1])
+                        time.sleep(3)
+                        self.device.tap(100, 100)
+                        time.sleep(1.5)
+                        self.device.tap(100, 100)
+                        time.sleep(2)
+                        # Reset scroll para seguir buscando desde arriba
+                        intento_scroll = 0
+                    else:
+                        if intento_scroll < MAX_SCROLLS:
+                            print(f"  [🔄] Scroll #{intento_scroll + 1} en Pass...")
+                            self.device.swipe(1840, 740, 1840, 240, duration=0.4)
+                            time.sleep(1.5)
+                        else:
+                            print("  [i] Pass agotado.")
+                            break
+            else:
+                print("  [!] No se encontró Returner's Pass en el menú. Saltando.")
+
+        # ── Salir del menú comeback ────────────────────────────────────────
         if eventos_reclamados:
             print("  [🎁] Todas las recompensas reclamadas. Saliendo del menú...")
             self.device.d.press("back")

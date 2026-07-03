@@ -92,6 +92,17 @@ class Device:
                 if not self._reconnect():
                     raise RuntimeError("Dispositivo ADB no disponible.") from e
 
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.5):
+        """Desliza entre dos puntos con retry automático ante desconexión."""
+        for intento in range(_MAX_RECONNECT):
+            try:
+                self.d.swipe(int(x1), int(y1), int(x2), int(y2), duration)
+                return
+            except Exception as e:
+                log.warning("Error en swipe — intento %d: %s", intento + 1, e)
+                if not self._reconnect():
+                    raise RuntimeError("Dispositivo ADB no disponible.") from e
+
     # ──────────────────────────────────────────
     # APP
     # ──────────────────────────────────────────

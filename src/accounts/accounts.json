@@ -1,0 +1,109 @@
+{
+  "accounts": [
+    {
+      "id": 1,
+      "name": "Mcbeth/Beth",
+      "serial": "B5DF7BWQLEYM",
+      "enabled": true,
+      "priority": 1,
+      "notes": "Multi-server",
+      "servers": [
+        { "server_id": "SA-3" },
+        { "server_id": "SA-6" }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Mini Beth",
+      "serial": "JD6C633CGJHT",
+      "enabled": true,
+      "priority": 2,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 3,
+      "name": "BENKEI",
+      "serial": "ggnk6ex67cme",
+      "enabled": true,
+      "priority": 3,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 4,
+      "name": "Yukimura",
+      "serial": "zy796k93rrwm",
+      "enabled": true,
+      "priority": 4,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 5,
+      "name": "Jiren / sami",
+      "serial": "HRBZG387V5GN",
+      "enabled": true,
+      "priority": 5,
+      "notes": "Multi-server",
+      "servers": [
+        { "server_id": "SA-3" },
+        { "server_id": "SA-6" }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Link123",
+      "serial": "PNXZDR77HKY7",
+      "enabled": true,
+      "priority": 6,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 7,
+      "name": "Omega123",
+      "serial": "KR3Z2PGMDHXM",
+      "enabled": true,
+      "priority": 7,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 8,
+      "name": "ASRA",
+      "serial": "KTD2LRPHARZE",
+      "enabled": true,
+      "priority": 8,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 9,
+      "name": "Somnial",
+      "serial": "M9C5HHMF2Y2D",
+      "enabled": true,
+      "priority": 9,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 10,
+      "name": "KuroNeko",
+      "serial": "H0MLNHWCTG7W",
+      "enabled": true,
+      "priority": 10,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 11,
+      "name": "Diferoku",
+      "serial": "FAY50MC5ACY0",
+      "enabled": true,
+      "priority": 11,
+      "notes": "",
+      "servers": []
+    }
+  ]
+}
