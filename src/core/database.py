@@ -55,8 +55,8 @@ class Account:
 
         default_tasks = {
             "daily_missions": False,
-            "events":         False,
-            "story":          False,
+           # "events":         False,
+            #"story":          False,
             "login_bonus":    False,
         }
 
@@ -84,7 +84,7 @@ class Account:
         return self.get_today_progress(server_id).get(task_name, False)
 
     def pending_tasks(self, server_id=None):
-        all_tasks = ["login_bonus", "daily_missions", "events", "story"]
+        all_tasks = ["login_bonus", "daily_missions", ]
 
         if server_id:
             tp = self.get_today_progress(server_id)
@@ -104,7 +104,7 @@ class Account:
         return [t for t in all_tasks if not tp.get(t, False)]
 
     def completion_percent(self):
-        all_tasks = ["login_bonus", "daily_missions", "events", "story"]
+        all_tasks = ["login_bonus", "daily_missions",]
 
         if self.servers:
             total = len(all_tasks) * len(self.servers)

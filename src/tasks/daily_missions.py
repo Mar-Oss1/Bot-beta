@@ -2,10 +2,11 @@ import time
 import datetime
 import cv2
 import pytesseract
-
+import os
 from core.config import TESSERACT_CMD
 from core.logger import get_logger
 from core.economia import registrar_economia
+from tasks.defense import Defense
 
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 
@@ -45,7 +46,7 @@ class DailyMissions:
     def leer_gemas(self) -> int:
         log.info("👁️  Escaneando contador de gemas...")
         try:
-            X, Y, W, H = 1315, 35, 290, 50
+            X, Y, W, H = 1380, 15, 180, 50
             screen_path = "temp_gems_ocr.png"
             self.device.d.screenshot(screen_path)
             img = cv2.imread(screen_path)
@@ -56,19 +57,27 @@ class DailyMissions:
 
             roi = img[Y:Y + H, X:X + W]
             gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-            gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-            _, thresh = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY)
 
+            # Aumentamos la escala para que Tesseract procese mejor los bordes
+            gray = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+
+            # APLICAMOS INVERSIÓN (INV) Y OTUS (automático)
+            # Esto convierte los números blancos sobre fondo oscuro a negro sobre blanco,
+            # que es el formato que Tesseract prefiere.
+            _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+            # PSM 7 es bueno para una sola línea, pero a veces PSM 8 funciona mejor para números sueltos
             texto = pytesseract.image_to_string(
                 thresh, config="--psm 7 -c tessedit_char_whitelist=0123456789"
             )
+
             numeros = "".join(filter(str.isdigit, texto))
 
-            import os
             if os.path.exists(screen_path):
                 os.remove(screen_path)
 
             if not numeros:
+                # Guardamos debug automáticamente si falla para que no te quedes a ciegas
                 debug_path = f"logs/debug_ocr_{datetime.datetime.now().strftime('%H%M%S')}.png"
                 os.makedirs("logs", exist_ok=True)
                 cv2.imwrite(debug_path, thresh)
@@ -119,7 +128,7 @@ class DailyMissions:
             screen = self.device.screenshot()
             if any(self.vision.find_template(screen, t, threshold=0.85) for t in templates):
                 log.debug("Ventana de loot/victoria detectada. Cerrando...")
-                self.device.tap(100, 100)
+                self.device.tap(150, 100)
                 time.sleep(1.5)
                 intentos += 1
             else:
@@ -262,37 +271,55 @@ class DailyMissions:
         gemas_inicio = self.leer_gemas()
         log.info("💎 Gemas al empezar: %d", gemas_inicio)
 
+        # Módulo opcional de Lucky Fountain
         dia = datetime.datetime.now().day
         if dia in [14, 15, 30, 31]:
             if not self._modulo_completado("fountain"):
                 log.info("📅 Día %d → activando Lucky Fountain", dia)
-                self.do_lucky_fountain()
-            else:
-                log.info("⏭️  Lucky Fountain ya completada.")
+                try:
+                    self.do_lucky_fountain()
+                    self._completar_modulo("fountain")
+                except Exception as e:
+                    log.error("Error en Lucky Fountain: %s", e)
 
         modulos = [
             ("tower", self.do_tower_of_trials, "Tower of Trials"),
             ("alliance", self.do_alliance_quest, "Misiones de Gremio"),
             ("arena", self.do_arena, "Arena"),
+            ("defense", lambda: Defense(self.device, self.vision, self.account, self.db).execute(), "Defensa War"),
             ("summons", self.do_summons, "Invocaciones"),
             ("mana", self.do_spend_mana, "Gasto de Maná"),
             ("rewards", self.claim_all_rewards, "Reclamo de Recompensas"),
         ]
 
+        rutina_exitosa = True
         for key, func, label in modulos:
             if not self._modulo_completado(key):
                 log.info("▶️  Ejecutando: %s", label)
-                func()
-                self._completar_modulo(key)
+                try:
+                    func()
+                    self._completar_modulo(key)
+                except Exception as e:
+                    log.error("❌ Error crítico en módulo %s: %s", label, e)
+                    rutina_exitosa = False
+                    # Si falla un módulo, paramos el bucle para no causar más errores
+                    break
             else:
                 log.info("⏭️  %s ya completado.", label)
 
-        self._completar_modulo("daily_missions")
-        self._completar_modulo("login_bonus")
+        # Solo marcamos las tareas globales si todo lo anterior fue exitoso
+        if rutina_exitosa:
+            self._completar_modulo("daily_missions")
+            self._completar_modulo("login_bonus")
+            log.info("✅ Rutina diaria completada exitosamente.")
+        else:
+            log.warning("⚠️ Rutina diaria incompleta. Se reintentarán tareas pendientes en la próxima ejecución.")
 
         self.return_to_home()
         time.sleep(3)
         gemas_fin = self.leer_gemas()
+
+        # Validación extra de lectura
         if gemas_fin == 0:
             log.warning("Lectura de gemas cero, reintentando...")
             time.sleep(2)
@@ -313,8 +340,7 @@ class DailyMissions:
             gemas_fin=gemas_fin,
         )
 
-        log.info("✅ Rutina completada para %s", cuenta_label)
-        return True
+        return rutina_exitosa
 
     def do_lucky_fountain(self):
         log.info("⛲ Módulo: Lucky Fountain")
@@ -667,7 +693,7 @@ class DailyMissions:
             time.sleep(2)
 
         log.info("  ✅ Arena finalizada.")
-        self.return_to_home()
+        self.cerrar_ventana()
 
     def do_summons(self):
         log.info("🌟 Módulo: Invocaciones")
@@ -812,7 +838,7 @@ class DailyMissions:
             etapa_encontrada = False
             for etapa in ["stage_ex_10.png", "stage_ex_9.png", "stage_ex_8.png"]:
                 screen = self.device.screenshot()
-                pos_s = self.vision.find_template(screen, f"templates/{etapa}", threshold=0.9)
+                pos_s = self.vision.find_template(screen, f"templates/{etapa}", threshold=0.95)
                 if pos_s:
                     log.info("  🔍 Etapa: %s", etapa.replace(".png", ""))
                     self.device.tap(pos_s[0], pos_s[1])

@@ -1,9 +1,31 @@
 {
   "progress": {
     "1": {
-      "last_run": "2026-07-01 10:12",
+      "last_run": "2026-07-03 14:23",
       "days": {
         "2026-07-01": {
+          "SA-3": {
+            "tower": true,
+            "alliance": true,
+            "arena": true,
+            "summons": true,
+            "mana": true,
+            "rewards": true,
+            "daily_missions": true,
+            "login_bonus": true
+          },
+          "SA-6": {
+            "tower": true,
+            "alliance": true,
+            "arena": true,
+            "summons": true,
+            "mana": true,
+            "rewards": true,
+            "daily_missions": true,
+            "login_bonus": true
+          }
+        },
+        "2026-07-03": {
           "SA-3": {
             "tower": true,
             "alliance": true,
@@ -28,7 +50,7 @@
       }
     },
     "2": {
-      "last_run": "2026-07-01 10:20",
+      "last_run": "2026-07-03 12:50",
       "days": {
         "2026-06-27": {
           "daily_missions": true,
@@ -47,11 +69,21 @@
           "rewards": true,
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-07-03": {
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "summons": true,
+          "mana": true,
+          "rewards": true,
+          "daily_missions": true,
+          "login_bonus": true
         }
       }
     },
     "3": {
-      "last_run": "2026-07-01 10:28",
+      "last_run": "2026-07-03 12:57",
       "days": {
         "2026-06-25": {
           "daily_missions": true,
@@ -70,11 +102,21 @@
           "rewards": true,
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-07-03": {
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "summons": true,
+          "mana": true,
+          "rewards": true,
+          "daily_missions": true,
+          "login_bonus": true
         }
       }
     },
     "4": {
-      "last_run": "2026-07-01 10:39",
+      "last_run": "2026-07-03 13:05",
       "days": {
         "2026-06-30": {
           "daily_missions": true,
@@ -89,11 +131,21 @@
           "rewards": true,
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-07-03": {
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "summons": true,
+          "mana": true,
+          "rewards": true,
+          "daily_missions": true,
+          "login_bonus": true
         }
       }
     },
     "5": {
-      "last_run": "2026-07-01 10:47",
+      "last_run": "2026-07-03 22:53",
       "days": {
         "2026-06-30": {
           "SA-3": {
@@ -126,13 +178,49 @@
             "daily_missions": true,
             "login_bonus": true
           }
+        },
+        "2026-07-03": {
+          "SA-3": {
+            "tower": true,
+            "alliance": true,
+            "arena": true,
+            "summons": true,
+            "mana": true,
+            "rewards": true,
+            "daily_missions": true,
+            "login_bonus": true
+          },
+          "SA-6": {
+            "tower": true,
+            "alliance": true,
+            "arena": true,
+            "summons": true,
+            "mana": true,
+            "rewards": true,
+            "daily_missions": true,
+            "login_bonus": true
+          },
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "defense": true
         }
       }
     },
     "6": {
-      "last_run": "2026-07-01 10:53",
+      "last_run": "2026-07-03 13:14",
       "days": {
         "2026-07-01": {
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "summons": true,
+          "mana": true,
+          "rewards": true,
+          "daily_missions": true,
+          "login_bonus": true
+        },
+        "2026-07-03": {
           "tower": true,
           "alliance": true,
           "arena": true,
@@ -145,9 +233,19 @@
       }
     },
     "7": {
-      "last_run": "2026-07-01 11:00",
+      "last_run": "2026-07-03 13:20",
       "days": {
         "2026-07-01": {
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "summons": true,
+          "mana": true,
+          "rewards": true,
+          "daily_missions": true,
+          "login_bonus": true
+        },
+        "2026-07-03": {
           "tower": true,
           "alliance": true,
           "arena": true,
@@ -160,7 +258,7 @@
       }
     },
     "8": {
-      "last_run": "2026-07-01 11:06",
+      "last_run": "2026-07-03 13:27",
       "days": {
         "2026-06-26": {
           "daily_missions": true,
@@ -179,17 +277,37 @@
           "rewards": true,
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-07-03": {
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "summons": true,
+          "mana": true,
+          "rewards": true,
+          "daily_missions": true,
+          "login_bonus": true
         }
       }
     },
     "9": {
-      "last_run": "2026-07-01 11:13",
+      "last_run": "2026-07-03 13:32",
       "days": {
         "2026-06-30": {
           "daily_missions": true,
           "login_bonus": true
         },
         "2026-07-01": {
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "summons": true,
+          "mana": true,
+          "rewards": true,
+          "daily_missions": true,
+          "login_bonus": true
+        },
+        "2026-07-03": {
           "tower": true,
           "alliance": true,
           "arena": true,
@@ -202,7 +320,7 @@
       }
     },
     "10": {
-      "last_run": "2026-07-01 11:17",
+      "last_run": "2026-07-03 13:38",
       "days": {
         "2026-06-30": {
           "daily_missions": true,
@@ -217,11 +335,21 @@
           "rewards": true,
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-07-03": {
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "summons": true,
+          "mana": true,
+          "rewards": true,
+          "daily_missions": true,
+          "login_bonus": true
         }
       }
     },
     "11": {
-      "last_run": "2026-07-01 11:23",
+      "last_run": "2026-07-03 13:46",
       "days": {
         "2026-06-25": {
           "daily_missions": true,
@@ -240,8 +368,26 @@
           "rewards": true,
           "daily_missions": true,
           "login_bonus": true
+        },
+        "2026-07-03": {
+          "tower": true,
+          "alliance": true,
+          "arena": true,
+          "summons": true,
+          "mana": true,
+          "rewards": true,
+          "daily_missions": true,
+          "login_bonus": true
         }
       }
+    },
+    "12": {
+      "last_run": null,
+      "days": {}
+    },
+    "13": {
+      "last_run": null,
+      "days": {}
     }
   }
 }
