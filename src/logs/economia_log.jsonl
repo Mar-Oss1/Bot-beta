@@ -7,7 +7,7 @@
 {"fecha": "2026-07-03 12:45:44", "cuenta": "Mcbeth/Beth", "server_id": "SA-3", "gemas_inicio": 18077, "gemas_fin": 7813, "ganancia": -10264}
 {"fecha": "2026-07-03 12:50:29", "cuenta": "Mini Beth", "server_id": "DEFAULT", "gemas_inicio": 55390, "gemas_fin": 7, "ganancia": -55383}
 {"fecha": "2026-07-03 12:57:56", "cuenta": "BENKEI", "server_id": "DEFAULT", "gemas_inicio": 66557, "gemas_fin": 66840, "ganancia": 283}
-{"fecha": "2026-07-03 13:05:10", "cuenta": "Yukimura", "server_id": "DEFAULT", "gemas_inicio": 91225, "gemas_fin": 0, "ganancia": -91225}
+{"fecha": "2026-07-03 13:05:10", "cuenta": "Yukimura", "server_id": "DEFAULT", "gemas_inicio": 91225, "gemas_fin": 92326, "ganancia": 1001}
 {"fecha": "2026-07-03 13:11:41", "cuenta": "Jiren / sami", "server_id": "SA-3", "gemas_inicio": 28654, "gemas_fin": 28654, "ganancia": 0}
 {"fecha": "2026-07-03 13:12:41", "cuenta": "Jiren / sami", "server_id": "SA-6", "gemas_inicio": 0, "gemas_fin": 0, "ganancia": 0}
 {"fecha": "2026-07-03 13:14:55", "cuenta": "Link123", "server_id": "DEFAULT", "gemas_inicio": 774, "gemas_fin": 0, "ganancia": -774}
@@ -19,3 +19,11 @@
 {"fecha": "2026-07-03 14:00:27", "cuenta": "Prueba", "server_id": "DEFAULT", "gemas_inicio": 4, "gemas_fin": 7, "ganancia": 3}
 {"fecha": "2026-07-03 14:05:48", "cuenta": "Prueba", "server_id": "DEFAULT", "gemas_inicio": 0, "gemas_fin": 0, "ganancia": 0}
 {"fecha": "2026-07-03 14:23:25", "cuenta": "Mcbeth/Beth", "server_id": "SA-6", "gemas_inicio": 101496, "gemas_fin": 101496, "ganancia": 0}
+{"fecha": "2026-07-04 10:39:09", "cuenta": "Mcbeth/Beth", "server_id": "SA-3", "gemas_inicio": 157454, "gemas_fin": 157730, "ganancia": 276}
+{"fecha": "2026-07-04 10:48:58", "cuenta": "Mcbeth/Beth", "server_id": "SA-6", "gemas_inicio": 101554, "gemas_fin": 102032, "ganancia": 478}
+{"fecha": "2026-07-04 10:57:22", "cuenta": "Mini Beth", "server_id": "DEFAULT", "gemas_inicio": 55494, "gemas_fin": 55934, "ganancia": 440}
+{"fecha": "2026-07-04 11:09:18", "cuenta": "BENKEI", "server_id": "DEFAULT", "gemas_inicio": 66933, "gemas_fin": 67216, "ganancia": 283}
+{"fecha": "2026-07-04 11:23:54", "cuenta": "ASRA", "server_id": "DEFAULT", "gemas_inicio": 82186, "gemas_fin": 4, "ganancia": -82182}
+{"fecha": "2026-07-04 11:33:48", "cuenta": "Somnial", "server_id": "DEFAULT", "gemas_inicio": 89578, "gemas_fin": 89618, "ganancia": 40}
+{"fecha": "2026-07-04 11:40:32", "cuenta": "KuroNeko", "server_id": "DEFAULT", "gemas_inicio": 77792, "gemas_fin": 77792, "ganancia": 0}
+{"fecha": "2026-07-04 11:49:11", "cuenta": "Diferoku", "server_id": "DEFAULT", "gemas_inicio": 135161, "gemas_fin": 135161, "ganancia": 0}
