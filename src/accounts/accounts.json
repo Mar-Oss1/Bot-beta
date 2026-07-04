@@ -8,8 +8,12 @@
       "priority": 1,
       "notes": "Multi-server",
       "servers": [
-        { "server_id": "SA-3" },
-        { "server_id": "SA-6" }
+        {
+          "server_id": "SA-3"
+        },
+        {
+          "server_id": "SA-6"
+        }
       ]
     },
     {
@@ -41,20 +45,17 @@
     },
     {
       "id": 5,
-      "name": "Jiren / sami",
-      "serial": "HRBZG387V5GN",
+      "name": "ASRA",
+      "serial": "KTD2LRPHARZE",
       "enabled": true,
       "priority": 5,
-      "notes": "Multi-server",
-      "servers": [
-        { "server_id": "SA-3" },
-        { "server_id": "SA-6" }
-      ]
+      "notes": "",
+      "servers": []
     },
     {
       "id": 6,
-      "name": "Link123",
-      "serial": "PNXZDR77HKY7",
+      "name": "Somnial",
+      "serial": "M9C5HHMF2Y2D",
       "enabled": true,
       "priority": 6,
       "notes": "",
@@ -62,8 +63,8 @@
     },
     {
       "id": 7,
-      "name": "Omega123",
-      "serial": "KR3Z2PGMDHXM",
+      "name": "KuroNeko",
+      "serial": "H0MLNHWCTG7W",
       "enabled": true,
       "priority": 7,
       "notes": "",
@@ -71,8 +72,8 @@
     },
     {
       "id": 8,
-      "name": "ASRA",
-      "serial": "KTD2LRPHARZE",
+      "name": "Diferoku",
+      "serial": "FAY50MC5ACY0",
       "enabled": true,
       "priority": 8,
       "notes": "",
@@ -80,17 +81,24 @@
     },
     {
       "id": 9,
-      "name": "Somnial",
-      "serial": "M9C5HHMF2Y2D",
+      "name": "Jiren / sami",
+      "serial": "HRBZG387V5GN",
       "enabled": true,
       "priority": 9,
-      "notes": "",
-      "servers": []
+      "notes": "Multi-server",
+      "servers": [
+        {
+          "server_id": "SA-3"
+        },
+        {
+          "server_id": "SA-6"
+        }
+      ]
     },
     {
       "id": 10,
-      "name": "KuroNeko",
-      "serial": "H0MLNHWCTG7W",
+      "name": "Link123",
+      "serial": "PNXZDR77HKY7",
       "enabled": true,
       "priority": 10,
       "notes": "",
@@ -98,10 +106,28 @@
     },
     {
       "id": 11,
-      "name": "Diferoku",
-      "serial": "FAY50MC5ACY0",
+      "name": "Omega123",
+      "serial": "KR3Z2PGMDHXM",
       "enabled": true,
       "priority": 11,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 12,
+      "name": "Y U M E",
+      "serial": "kp3p8cc18zy1",
+      "enabled": true,
+      "priority": 12,
+      "notes": "",
+      "servers": []
+    },
+    {
+      "id": 13,
+      "name": "アラン",
+      "serial": "n1ht487p4y6c",
+      "enabled": true,
+      "priority": 13,
       "notes": "",
       "servers": []
     }

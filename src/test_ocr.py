@@ -7,8 +7,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 
 
 def probar_ocr_gemas():
-    # 1. Toma una captura manualmente y guárdala como 'pantalla_test.png'
-    # O usa la que ya tienes en tu carpeta
+    # 1. Archivo de prueba
     screen_path = "pantalla_test.png"
 
     if not os.path.exists(screen_path):
@@ -17,28 +16,34 @@ def probar_ocr_gemas():
 
     img = cv2.imread(screen_path)
 
-    # 2.coordenadas de prueba
-    X, Y, W, H = 1315, 15, 240, 50
+    # 2. Coordenadas de prueba
+    X, Y, W, H = 1380, 15, 180, 50
 
     # 3. Recortar
     roi = img[Y:Y + H, X:X + W]
 
     # 4. Procesar para que Tesseract lo entienda
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-    _, thresh = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY)
+    # Aumentamos la escala para mayor definición
+    gray = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
 
-    # 5. Guardar imágenes de prueba (¡Aquí está el truco que te dieron!)
+    # --- CAMBIOS APLICADOS ---
+    # Invertimos los colores (BINARY_INV) y usamos el umbral de Otsu para limpieza automática
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+
+    # 5. Guardar imágenes de prueba
     cv2.imwrite("debug_roi_gray.png", gray)
     cv2.imwrite("debug_roi_thresh.png", thresh)
 
     # 6. Leer
+    # PSM 7 sigue siendo bueno para líneas de texto, PSM 8 es mejor para bloques de números aislados
     texto = pytesseract.image_to_string(thresh, config='--psm 7 -c tessedit_char_whitelist=0123456789')
     numeros = ''.join(filter(str.isdigit, texto))
 
-    print(f"  [DEBUG] Texto detectado: '{texto}'")
+    print(f"  [DEBUG] Texto detectado: '{texto.strip()}'")
     print(f"  [DEBUG] Números limpios: '{numeros}'")
 
+    # Muestra el resultado
     cv2.imshow("ROI Procesado (Presiona cualquier tecla para cerrar)", thresh)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
