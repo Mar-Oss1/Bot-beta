@@ -124,11 +124,11 @@ class DailyMissions:
             "templates/summon_chest_loot.png",
         ]
         intentos = 0
-        while intentos < 5:
+        while intentos < 6:
             screen = self.device.screenshot()
             if any(self.vision.find_template(screen, t, threshold=0.85) for t in templates):
                 log.debug("Ventana de loot/victoria detectada. Cerrando...")
-                self.device.tap(150, 100)
+                self.device.tap(300, 100)
                 time.sleep(1.5)
                 intentos += 1
             else:
@@ -203,10 +203,55 @@ class DailyMissions:
             if not algo:
                 break  # home limpio, salimos
 
+    def limpiar_banners_home(self):
+        """
+        Limpia banners que aparecen DESPUÉS de llegar al home.
+        Usa la misma lógica que startup.py para cerrar ofertas/eventos tardíos.
+        """
+        log.debug("🧹 Limpiando banners en home...")
+
+        # Esperar 2 segundos iniciales
+        time.sleep(2)
+
+        # Bucle de verificación (máximo 4 intentos)
+        for intento in range(4):
+            screen = self.device.screenshot()
+
+            # Verificar si hay banner tardío
+            banner_tardio = (
+                    self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8) or
+                    self.vision.find_template(screen, "templates/btn_claim.png", threshold=0.8)
+            )
+
+            if banner_tardio:
+                log.debug("  [🧹] Banner detectado en intento %d. Cerrando...", intento + 1)
+                self.device.tap(banner_tardio[0], banner_tardio[1])
+                time.sleep(2)
+                continue  # Repetir verificación
+
+            # Si no hay banner, esperar 1 segundo y verificar de nuevo
+            time.sleep(1)
+            screen = self.device.screenshot()
+            banner_tardio_2 = (
+                    self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8) or
+                    self.vision.find_template(screen, "templates/btn_claim.png", threshold=0.8)
+            )
+
+            if banner_tardio_2:
+                log.debug("  [🧹] Banner detectado tras 1s extra. Cerrando...")
+                self.device.tap(banner_tardio_2[0], banner_tardio_2[1])
+                time.sleep(2)
+                continue  # Repetir verificación
+
+            # Si llegamos aquí, no hay banners
+            log.debug("✅ Home confirmado limpio tras %d intentos.", intento + 1)
+            return
+
+        log.warning("⚠️  Se agotaron los 4 intentos de limpieza.")
+
     def handle_battle_sequence(self) -> str:
         time.sleep(2.5)
         screen = self.device.screenshot()
-
         pos_draw = self.vision.find_template(screen, "templates/Draw.png", threshold=0.85)
         if pos_draw:
             log.info("⚖️  EMPATE detectado en el combate.")
@@ -552,7 +597,6 @@ class DailyMissions:
         if not pos_tot:
             log.error("No se encontró el botón de Tower of Trials.")
             return
-
         self.device.tap(pos_tot[0], pos_tot[1])
         time.sleep(5)
 
@@ -568,6 +612,7 @@ class DailyMissions:
         if pos_ff:
             self.device.tap(pos_ff[0], pos_ff[1])
             time.sleep(3)
+
             acels, intentos_flecha = 0, 0
             while acels < 2 and intentos_flecha < 3:
                 screen = self.device.screenshot()
@@ -606,10 +651,8 @@ class DailyMissions:
             if not pos_boss:
                 break
             self.device.tap(pos_boss[0], pos_boss[1])
-
             log.info("  [⏳] Esperando 5 segundos a que el servidor responda...")
-            time.sleep(5)
-
+            time.sleep(7)
             if self.handle_battle_sequence() == "draw":
                 reintentos += 1
                 log.warning("Empate en Torre (%d/3). Reintentando...", reintentos)
@@ -619,8 +662,8 @@ class DailyMissions:
 
         if reintentos == 3:
             log.warning("Límite de empates alcanzado en Torre.")
-
         self.return_to_home()
+        self.limpiar_banners_home()
 
     def do_alliance_quest(self):
         log.info("🛡️  Módulo: Misiones de Gremio")
@@ -663,7 +706,7 @@ class DailyMissions:
         arenas = self.vision.find_all_templates(screen, "templates/btn_arena.png", threshold=0.85)
         if not arenas:
             log.error("No se encontraron los modos de Arena.")
-            self.return_to_home()
+            self.cerrar_ventana()
             return
 
         arenas.sort(key=lambda p: p[0])
@@ -777,6 +820,7 @@ class DailyMissions:
 
         # --- SALIDA ESPECÍFICA PARA INVOCACIONES ---
         self._salir_de_invocaciones()
+        self.limpiar_banners_home()
 
     def _salir_de_invocaciones(self):
         """
@@ -816,8 +860,18 @@ class DailyMissions:
 
     def do_spend_mana(self):
         log.info("💧 Módulo: Sweep de Eventos")
-        screen = self.device.screenshot()
-        eventos = self.vision.find_all_templates(screen, "templates/label_ends_in.png", threshold=0.75)
+        time.sleep(3)
+        eventos = None
+        for intento in range(3):
+            screen = self.device.screenshot()
+            eventos = self.vision.find_all_templates(screen, "templates/label_ends_in.png", threshold=0.75)
+
+            if eventos:
+                break
+
+            if intento < 2:
+                log.debug("  [⏳] No se encontraron eventos. Reintentando (%d/3)...", intento + 1)
+                time.sleep(2)
 
         if not eventos:
             log.warning("No se encontraron banners de eventos activos.")
@@ -873,6 +927,7 @@ class DailyMissions:
                 self.cerrar_ventana()
 
             self.return_to_home()
+            self.limpiar_banners_home()
             time.sleep(2)
 
     def claim_all_rewards(self):

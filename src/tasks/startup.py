@@ -1,5 +1,8 @@
 import time
 import os
+from core.logger import get_logger
+
+log = get_logger("startup")
 
 
 class Startup:
@@ -10,8 +13,8 @@ class Startup:
         os.makedirs(self.debug_dir, exist_ok=True)
 
     def execute(self):
-        print("\n[🚀] Iniciando secuencia de entrada (con pausa de seguridad)...")
-        max_intentos = 10
+        log.info("🚀 Iniciando secuencia de entrada...")
+        max_intentos = 15
         intentos = 0
 
         while intentos < max_intentos:
@@ -25,7 +28,7 @@ class Startup:
             # 1. ¿Salió algún evento o bono?
             pos_claim = self.vision.find_template(screen, "templates/btn_claim.png", threshold=0.8)
             if pos_claim:
-                print(" [+] Reclamando botón universal...")
+                log.debug("[+] Reclamando botón universal...")
                 self.device.tap(pos_claim[0], pos_claim[1])
                 time.sleep(2)
                 algo_encontrado = True
@@ -34,7 +37,7 @@ class Startup:
             if not algo_encontrado:
                 pos_x = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
                 if pos_x:
-                    print(" [-] Cerrando anuncio/banner...")
+                    log.debug("[-] Cerrando anuncio/banner...")
                     self.device.tap(pos_x[0], pos_x[1])
                     time.sleep(2)
                     algo_encontrado = True
@@ -46,72 +49,83 @@ class Startup:
                 if pos_login or pos_titulo:
                     algo_encontrado = True
                     if pos_titulo:
-                        print(" [>] Dando Start al juego...")
+                        log.debug("[>] Dando Start al juego...")
                         self.device.tap(pos_titulo[0], pos_titulo[1])
                     else:
-                        print(" [>] Saltando animación de recompensas...")
+                        log.debug("[>] Saltando animación de recompensas...")
                         self.device.tap(100, 800)
                     time.sleep(3)
 
-            # --- LA NUEVA PAUSA DE SEGURIDAD ---
+            # --- PAUSA DE SEGURIDAD OPTIMIZADA ---
             if not algo_encontrado:
-                print(" [i] Pantalla aparentemente limpia. Esperando 3 segundos por banners tardíos...")
-                time.sleep(6)
+                log.debug("[i] Pantalla aparentemente limpia. Verificando banners tardíos...")
 
-                # Re-escanear después de la pausa para estar 100% seguros
+                # Esperar solo 2 segundos en lugar de 6
+                time.sleep(2)
+
+                # Verificación 1
                 screen_final = self.device.screenshot()
-                if self.vision.find_template(screen_final, "templates/btn_cerrar_x.png", threshold=0.8) or \
-                        self.vision.find_template(screen_final, "templates/btn_claim.png", threshold=0.8):
-                    print(" [!] ¡Detecté un banner tras la pausa! Repitiendo ciclo...")
+                banner_tardio = (
+                        self.vision.find_template(screen_final, "templates/btn_cerrar_x.png", threshold=0.8) or
+                        self.vision.find_template(screen_final, "templates/btn_claim.png", threshold=0.8)
+                )
+
+                if banner_tardio:
+                    log.warning("[!] ¡Detecté un banner tras 2s! Repitiendo ciclo...")
                     continue
 
-                print(" [✅] Pantalla confirmada limpia. Estamos dentro.")
+                # Verificación 2 (solo si la primera pasó)
+                time.sleep(1)
+                screen_final_2 = self.device.screenshot()
+                banner_tardio_2 = (
+                        self.vision.find_template(screen_final_2, "templates/btn_cerrar_x.png", threshold=0.8) or
+                        self.vision.find_template(screen_final_2, "templates/btn_claim.png", threshold=0.8)
+                )
+
+                if banner_tardio_2:
+                    log.warning("[!] ¡Detecté un banner tras 3s! Repitiendo ciclo...")
+                    continue
+
+                log.info("[✅] Pantalla confirmada limpia. Estamos dentro.")
                 return True
 
             intentos += 1
 
+        log.error("❌ Startup falló tras %d intentos.", max_intentos)
         return False
 
     def handle_comeback_bonus(self):
         eventos_reclamados = False
         MAX_SCROLLS = 5
 
-        # ── Página 1: Returner's Bonus ─────────────────────────────────────
+        # ── Página 1: Returner's Bonus ────────────────────────────────────
         while True:
             screen = self.device.screenshot()
             pos_claim = self.vision.find_template(screen, "templates/btn_claim_comeback.png", threshold=0.8)
-
             if pos_claim:
-                print("  [🎁] Bonus detectado! Reclamando...")
+                log.debug("  [🎁] Bonus detectado! Reclamando...")
                 self.device.tap(pos_claim[0], pos_claim[1])
                 time.sleep(3)
-
-                print("  [🎁] Cerrando loot...")
+                log.debug("  [🎁] Cerrando loot...")
                 self.device.tap(100, 100)
                 time.sleep(1.5)
                 self.device.tap(100, 100)
                 time.sleep(2)
-
                 eventos_reclamados = True
-
             else:
-                # Solo scrolleamos si ya reclamamos algo (estamos dentro del menú)
                 if not eventos_reclamados:
                     break
-
                 scroll_exitoso = False
                 for intento_scroll in range(1, MAX_SCROLLS + 1):
-                    print(f"  [🔄] Scroll #{intento_scroll} buscando más en Bonus...")
+                    log.debug("  [🔄] Scroll #%d buscando más en Bonus...", intento_scroll)
                     self.device.swipe(1840, 740, 1840, 240, duration=0.4)
                     time.sleep(1.5)
-
                     screen = self.device.screenshot()
                     pos_claim = self.vision.find_template(
                         screen, "templates/btn_claim_comeback.png", threshold=0.8
                     )
-
                     if pos_claim:
-                        print("  [🎁] Claim encontrado tras scroll! Reclamando...")
+                        log.debug("  [🎁] Claim encontrado tras scroll! Reclamando...")
                         self.device.tap(pos_claim[0], pos_claim[1])
                         time.sleep(3)
                         self.device.tap(100, 100)
@@ -121,19 +135,17 @@ class Startup:
                         eventos_reclamados = True
                         scroll_exitoso = True
                         break
-
                 if not scroll_exitoso:
-                    print(f"  [i] Bonus agotado tras {MAX_SCROLLS} scrolls.")
+                    log.debug("  [i] Bonus agotado tras %d scrolls.", MAX_SCROLLS)
                     break
 
         # ── Página 2: Returner's Pass ──────────────────────────────────────
         if eventos_reclamados:
-            print("  [📋] Navegando a Returner's Pass...")
+            log.debug("  [📋] Navegando a Returner's Pass...")
             screen = self.device.screenshot()
             pos_pass = self.vision.find_template(
                 screen, "templates/btn_returner_pass.png", threshold=0.8
             )
-
             if pos_pass:
                 self.device.tap(pos_pass[0], pos_pass[1])
                 time.sleep(2)
@@ -142,33 +154,30 @@ class Startup:
                     pos_claim = self.vision.find_template(
                         screen, "templates/btn_claim_comeback.png", threshold=0.8
                     )
-
                     if pos_claim:
-                        print("  [🎁] Pass: Claim encontrado! Reclamando...")
+                        log.debug("  [🎁] Pass: Claim encontrado! Reclamando...")
                         self.device.tap(pos_claim[0], pos_claim[1])
                         time.sleep(3)
                         self.device.tap(100, 100)
                         time.sleep(1.5)
                         self.device.tap(100, 100)
                         time.sleep(2)
-                        # Reset scroll para seguir buscando desde arriba
                         intento_scroll = 0
                     else:
                         if intento_scroll < MAX_SCROLLS:
-                            print(f"  [🔄] Scroll #{intento_scroll + 1} en Pass...")
+                            log.debug("  [🔄] Scroll #%d en Pass...", intento_scroll + 1)
                             self.device.swipe(1840, 740, 1840, 240, duration=0.4)
                             time.sleep(1.5)
                         else:
-                            print("  [i] Pass agotado.")
+                            log.debug("  [i] Pass agotado.")
                             break
             else:
-                print("  [!] No se encontró Returner's Pass en el menú. Saltando.")
+                log.warning("  [!] No se encontró Returner's Pass en el menú. Saltando.")
 
         # ── Salir del menú comeback ────────────────────────────────────────
         if eventos_reclamados:
-            print("  [🎁] Todas las recompensas reclamadas. Saliendo del menú...")
+            log.debug("  [] Todas las recompensas reclamadas. Saliendo del menú...")
             self.device.d.press("back")
             time.sleep(3)
             return True
-
         return False
