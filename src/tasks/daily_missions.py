@@ -14,11 +14,6 @@ log = get_logger("daily_missions")
 
 
 class DailyMissions:
-    """
-    Recibe el objeto Account y Database para registrar el progreso
-    directamente en accounts.json después de cada módulo, sin archivo auxiliar.
-    y poco más
-    """
 
     def __init__(self, device, vision, account, db):
         self.device = device
@@ -57,16 +52,9 @@ class DailyMissions:
 
             roi = img[Y:Y + H, X:X + W]
             gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-
-            # Aumentamos la escala para que Tesseract procese mejor los bordes
             gray = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
-
-            # APLICAMOS INVERSIÓN (INV) Y OTUS (automático)
-            # Esto convierte los números blancos sobre fondo oscuro a negro sobre blanco,
-            # que es el formato que Tesseract prefiere.
             _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-            # PSM 7 es bueno para una sola línea, pero a veces PSM 8 funciona mejor para números sueltos
             texto = pytesseract.image_to_string(
                 thresh, config="--psm 7 -c tessedit_char_whitelist=0123456789"
             )
@@ -77,7 +65,6 @@ class DailyMissions:
                 os.remove(screen_path)
 
             if not numeros:
-                # Guardamos debug automáticamente si falla para que no te quedes a ciegas
                 debug_path = f"logs/debug_ocr_{datetime.datetime.now().strftime('%H%M%S')}.png"
                 os.makedirs("logs", exist_ok=True)
                 cv2.imwrite(debug_path, thresh)
@@ -183,7 +170,6 @@ class DailyMissions:
             screen = self.device.screenshot()
             algo = False
 
-            # 1. Botón claim genérico (eventos, ofertas reclamables)
             pos_claim = self.vision.find_template(screen, "templates/btn_claim.png", threshold=0.8)
             if pos_claim:
                 log.debug("  [🧹] Banner reclamable en home. Cerrando...")
@@ -191,7 +177,6 @@ class DailyMissions:
                 time.sleep(2)
                 algo = True
 
-            # 2. Botón X (anuncios, popups de oferta)
             if not algo:
                 pos_x = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
                 if pos_x:
@@ -201,23 +186,15 @@ class DailyMissions:
                     algo = True
 
             if not algo:
-                break  # home limpio, salimos
+                break
 
     def limpiar_banners_home(self):
-        """
-        Limpia banners que aparecen DESPUÉS de llegar al home.
-        Usa la misma lógica que startup.py para cerrar ofertas/eventos tardíos.
-        """
         log.debug("🧹 Limpiando banners en home...")
-
-        # Esperar 2 segundos iniciales
         time.sleep(2)
 
-        # Bucle de verificación (máximo 4 intentos)
         for intento in range(4):
             screen = self.device.screenshot()
 
-            # Verificar si hay banner tardío
             banner_tardio = (
                     self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8) or
                     self.vision.find_template(screen, "templates/btn_claim.png", threshold=0.8)
@@ -227,9 +204,8 @@ class DailyMissions:
                 log.debug("  [🧹] Banner detectado en intento %d. Cerrando...", intento + 1)
                 self.device.tap(banner_tardio[0], banner_tardio[1])
                 time.sleep(2)
-                continue  # Repetir verificación
+                continue
 
-            # Si no hay banner, esperar 1 segundo y verificar de nuevo
             time.sleep(1)
             screen = self.device.screenshot()
             banner_tardio_2 = (
@@ -241,9 +217,8 @@ class DailyMissions:
                 log.debug("  [🧹] Banner detectado tras 1s extra. Cerrando...")
                 self.device.tap(banner_tardio_2[0], banner_tardio_2[1])
                 time.sleep(2)
-                continue  # Repetir verificación
+                continue
 
-            # Si llegamos aquí, no hay banners
             log.debug("✅ Home confirmado limpio tras %d intentos.", intento + 1)
             return
 
@@ -316,14 +291,15 @@ class DailyMissions:
         gemas_inicio = self.leer_gemas()
         log.info("💎 Gemas al empezar: %d", gemas_inicio)
 
-        # Módulo opcional de Lucky Fountain
         dia = datetime.datetime.now().day
         if dia in [14, 15, 30, 31]:
             if not self._modulo_completado("fountain"):
                 log.info("📅 Día %d → activando Lucky Fountain", dia)
                 try:
-                    self.do_lucky_fountain()
-                    self._completar_modulo("fountain")
+                    if self.do_lucky_fountain():
+                        self._completar_modulo("fountain")
+                    else:
+                        log.warning("⚠️  Lucky Fountain falló. No se marca como completado.")
                 except Exception as e:
                     log.error("Error en Lucky Fountain: %s", e)
 
@@ -342,17 +318,19 @@ class DailyMissions:
             if not self._modulo_completado(key):
                 log.info("▶️  Ejecutando: %s", label)
                 try:
-                    func()
-                    self._completar_modulo(key)
+                    exito = func()
+                    if exito:
+                        self._completar_modulo(key)
+                    else:
+                        log.warning("⚠️  Módulo %s falló. No se marca como completado.", label)
+                        rutina_exitosa = False
                 except Exception as e:
                     log.error("❌ Error crítico en módulo %s: %s", label, e)
                     rutina_exitosa = False
-                    # Si falla un módulo, paramos el bucle para no causar más errores
                     break
             else:
                 log.info("⏭️  %s ya completado.", label)
 
-        # Solo marcamos las tareas globales si todo lo anterior fue exitoso
         if rutina_exitosa:
             self._completar_modulo("daily_missions")
             self._completar_modulo("login_bonus")
@@ -364,7 +342,6 @@ class DailyMissions:
         time.sleep(3)
         gemas_fin = self.leer_gemas()
 
-        # Validación extra de lectura
         if gemas_fin == 0:
             log.warning("Lectura de gemas cero, reintentando...")
             time.sleep(2)
@@ -387,13 +364,16 @@ class DailyMissions:
 
         return rutina_exitosa
 
-    def do_lucky_fountain(self):
+    def do_lucky_fountain(self) -> bool:
         log.info("⛲ Módulo: Lucky Fountain")
         screen = self.device.screenshot()
         pos = self.vision.find_template(screen, "templates/btn_fountain_home.png", threshold=0.8)
-        if pos:
-            self.device.tap(pos[0], pos[1])
-            time.sleep(3)
+        if not pos:
+            log.error("No se encontró btn_fountain_home.")
+            return False
+
+        self.device.tap(pos[0], pos[1])
+        time.sleep(3)
 
         for fase in range(1, 5):
             screen = self.device.screenshot()
@@ -411,7 +391,8 @@ class DailyMissions:
         log.debug("Cerrando Lucky Fountain...")
         self.cerrar_ventana()
         self.return_to_home()
-        self._completar_modulo("fountain")
+        self.limpiar_banners_home()
+        return True
 
     def _detectar_ssr(self) -> bool:
         import cv2
@@ -421,11 +402,7 @@ class DailyMissions:
         img = cv2.cvtColor(np.array(screen), cv2.COLOR_RGB2BGR)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        # Brillo promedio de la pantalla completa
         brillo_promedio = float(np.mean(gray))
-
-        # Umbral: pantalla SSR es notablemente más oscura que una normal
-        # Ajusta UMBRAL_SSR si da falsos positivos (sube) o no detecta (baja)
         UMBRAL_SSR = 10.0
         es_ssr = brillo_promedio < UMBRAL_SSR
 
@@ -437,19 +414,10 @@ class DailyMissions:
         return es_ssr
 
     def _manejar_animacion_ssr(self):
-        """
-        Maneja la secuencia de animación cuando sale un SSR:
-        1. Toca para que aparezca el personaje
-        2. Espera la animación
-        3. Toca Skip para continuar
-        """
         log.info("  [⭐] Manejando animación SSR...")
-
-        # Tap para que aparezca el personaje
         self.device.tap(760, 1200)
         time.sleep(2)
 
-        # Buscar Skip tras la aparición del personaje
         for _ in range(8):
             screen = self.device.screenshot()
             pos_skip = self.vision.find_template(
@@ -467,14 +435,6 @@ class DailyMissions:
         time.sleep(5)
 
     def do_premium_summons(self, veces: int = 1, parar_sin_ssr: int = 0):
-        """
-        Ejecuta invocaciones premium x10 con detección de SSR.
-
-        Args:
-            veces: cuántas veces ejecutar la invocación (default 1)
-            parar_sin_ssr: si > 0, para automáticamente si no sale SSR
-                           en ese número de rondas consecutivas (0 = desactivado)
-        """
         log.info("🌠 Módulo: Invocación Premium (%d vez/veces | parar sin SSR: %s)",
                  veces, f"cada {parar_sin_ssr}" if parar_sin_ssr > 0 else "desactivado")
 
@@ -485,13 +445,11 @@ class DailyMissions:
             log.info("  ── Ronda %d/%d | SSR acumulados: %d | Sin SSR consecutivos: %d ──",
                      ronda, veces, ssr_total, rondas_sin_ssr)
 
-            # ── Verificar límite de rondas sin SSR ────────────────────────
             if parar_sin_ssr > 0 and rondas_sin_ssr >= parar_sin_ssr:
                 log.info("  [🛑] %d rondas consecutivas sin SSR. Deteniendo según configuración.",
                          rondas_sin_ssr)
                 break
 
-            # ── 1. Buscar y tocar el botón x10 ────────────────────────────
             screen = self.device.screenshot()
             pos_x10 = self.vision.find_template(screen, "templates/btn_summon_x10.png", threshold=0.8)
             if not pos_x10:
@@ -501,7 +459,6 @@ class DailyMissions:
             self.device.tap(pos_x10[0], pos_x10[1])
             time.sleep(1.5)
 
-            # ── 2. Confirmar la invocación ─────────────────────────────────
             screen = self.device.screenshot()
             pos_confirm = self.vision.find_template(screen, "templates/btn_confirm_summon.png", threshold=0.8)
             if not pos_confirm:
@@ -512,7 +469,6 @@ class DailyMissions:
             self.device.tap(pos_confirm[0], pos_confirm[1])
             time.sleep(2)
 
-            # ── 3. Acelerar animación tocando hasta ver Skip ───────────────
             log.info("  [⏩] Acelerando animación...")
             MAX_TAPS_ANIM = 20
             ssr_en_esta_ronda = False
@@ -521,7 +477,6 @@ class DailyMissions:
             for tap_num in range(MAX_TAPS_ANIM):
                 screen = self.device.screenshot()
 
-                # Verificar SSR antes de buscar Skip
                 if self._detectar_ssr():
                     ssr_en_esta_ronda = True
                     ssr_total += 1
@@ -546,7 +501,6 @@ class DailyMissions:
                 log.warning("  Skip no apareció tras %d taps. Esperando...", MAX_TAPS_ANIM)
                 time.sleep(4)
 
-            # ── 4. Actualizar contador de rondas sin SSR ──────────────────
             if ssr_en_esta_ronda:
                 rondas_sin_ssr = 0
                 log.info("  [⭐] SSR en esta ronda. Contador sin SSR reiniciado.")
@@ -554,7 +508,6 @@ class DailyMissions:
                 rondas_sin_ssr += 1
                 log.info("  [·] Sin SSR esta ronda (%d consecutivas).", rondas_sin_ssr)
 
-            # ── 5. Buscar OK post-animación ────────────────────────────────
             log.info("  [🆗] Buscando botón OK...")
             ok_encontrado = False
             for intento in range(6):
@@ -575,7 +528,6 @@ class DailyMissions:
                 self.device.tap(100, 100)
                 time.sleep(1.5)
 
-            # ── 6. Limpiar loot ────────────────────────────────────────────
             log.info("  [🧹] Limpiando pantalla de loot...")
             self.clear_loot_windows()
             time.sleep(1)
@@ -590,13 +542,14 @@ class DailyMissions:
         log.info("   Rondas sin SSR    : %d consecutivas al final", rondas_sin_ssr)
         log.info("━" * 40)
 
-    def do_tower_of_trials(self):
+    def do_tower_of_trials(self) -> bool:
         log.info("🗼 Módulo: Tower of Trials")
         screen = self.device.screenshot()
         pos_tot = self.vision.find_template(screen, "templates/btn_tot_home.png", threshold=0.85)
         if not pos_tot:
             log.error("No se encontró el botón de Tower of Trials.")
-            return
+            return False
+
         self.device.tap(pos_tot[0], pos_tot[1])
         time.sleep(5)
 
@@ -662,23 +615,33 @@ class DailyMissions:
 
         if reintentos == 3:
             log.warning("Límite de empates alcanzado en Torre.")
+
         self.return_to_home()
         self.limpiar_banners_home()
+        return True
 
-    def do_alliance_quest(self):
+    def do_alliance_quest(self) -> bool:
         log.info("🛡️  Módulo: Misiones de Gremio")
         screen = self.device.screenshot()
         pos_bw = self.vision.find_template(screen, "templates/btn_battalion_warfare.png", threshold=0.85)
         if not pos_bw:
-            return
+            log.error("No se encontró btn_battalion_warfare. ¿Estás en el home?")
+            return False
+
         self.device.tap(pos_bw[0], pos_bw[1])
         time.sleep(2)
 
         screen = self.device.screenshot()
         pos_aq = self.vision.find_template(screen, "templates/btn_alliance_quest.png", threshold=0.85)
-        if pos_aq:
-            self.device.tap(pos_aq[0], pos_aq[1])
-            time.sleep(2)
+        if not pos_aq:
+            log.error("No se encontró btn_alliance_quest.")
+            self.cerrar_ventana()
+            self.return_to_home()
+            self.limpiar_banners_home()
+            return False
+
+        self.device.tap(pos_aq[0], pos_aq[1])
+        time.sleep(2)
 
         screen = self.device.screenshot()
         pos_ch = self.vision.find_template(screen, "templates/btn_challenge_boss_2.png", threshold=0.85)
@@ -690,24 +653,58 @@ class DailyMissions:
                 time.sleep(1)
 
         self.cerrar_ventana()
+        return True
 
-    def do_arena(self):
+    def do_arena(self) -> bool:
         log.info("🏟️  Módulo: Arena (5 batallas)")
         screen = self.device.screenshot()
-        pos_arena = self.vision.find_template(screen, "templates/arena.png", threshold=0.85)
+
+        arena_templates = [
+            "templates/arena.png",
+            "templates/btn_arena.png"
+        ]
+
+        resultado = self.vision.find_any(screen, arena_templates)
+        pos_arena = (resultado[1], resultado[2]) if resultado else None
+
         if not pos_arena:
-            log.error("No se encontró el ícono de Arena.")
-            return
+            log.info("  [🗺️] No estamos en el mapa de warfare. Intentando entrar...")
+            pos_warfare = self.vision.find_template(screen, "templates/btn_battalion_warfare.png", threshold=0.85)
+            if pos_warfare:
+                self.device.tap(pos_warfare[0], pos_warfare[1])
+                time.sleep(4)
+                screen = self.device.screenshot()
+                resultado = self.vision.find_any(screen, arena_templates)
+                pos_arena = (resultado[1], resultado[2]) if resultado else None
+
+            if not pos_arena:
+                log.error("No se encontró el ícono de Arena.")
+                return False
 
         self.device.tap(pos_arena[0], pos_arena[1])
         time.sleep(4)
 
         screen = self.device.screenshot()
-        arenas = self.vision.find_all_templates(screen, "templates/btn_arena.png", threshold=0.85)
+
+        arena_mode_templates = [
+            "templates/btn_arena.png",
+            "templates/arena_top1.png",
+            "templates/arena_top2.png",
+            "templates/arena_top3.png",
+            "templates/arena_top4.png",
+            "templates/arena_top5.png",
+        ]
+
+        arenas = []
+        for template in arena_mode_templates:
+            encontrados = self.vision.find_all_templates(screen, template, threshold=0.85)
+            if encontrados:
+                arenas.extend(encontrados)
+
         if not arenas:
             log.error("No se encontraron los modos de Arena.")
             self.cerrar_ventana()
-            return
+            return False
 
         arenas.sort(key=lambda p: p[0])
         self.device.tap(int(arenas[0][0]), int(arenas[0][1] + 190))
@@ -737,14 +734,15 @@ class DailyMissions:
 
         log.info("  ✅ Arena finalizada.")
         self.cerrar_ventana()
+        return True
 
-    def do_summons(self):
+    def do_summons(self) -> bool:
         log.info("🌟 Módulo: Invocaciones")
         screen = self.device.screenshot()
         pos_nav = self.vision.find_template(screen, "templates/btn_summon_nav.png", threshold=0.85)
         if not pos_nav:
             log.error("No se encontró el botón de navegación de invocaciones.")
-            return
+            return False
 
         self.device.tap(pos_nav[0], pos_nav[1])
         time.sleep(3)
@@ -772,9 +770,10 @@ class DailyMissions:
 
         if not encontrado:
             log.warning("  No se encontraron banners con invocaciones gratuitas.")
-            # Intentar salir con el botón específico antes de volver
             self._salir_de_invocaciones()
-            return
+            self.return_to_home()
+            self.limpiar_banners_home()
+            return False
 
         screen = self.device.screenshot()
         pos_chest = self.vision.find_template(screen, "templates/btn_friend_chest.png", threshold=0.85)
@@ -818,38 +817,29 @@ class DailyMissions:
                 log.warning("  No apareció confirmación para x10. Reintentando...")
                 time.sleep(1)
 
-        # --- SALIDA ESPECÍFICA PARA INVOCACIONES ---
         self._salir_de_invocaciones()
         self.limpiar_banners_home()
+        return True
 
     def _salir_de_invocaciones(self):
-        """
-        Sale de la pantalla de invocaciones usando el botón específico
-        'btn_back_summon.png'. Si no existe, usa cerrar_ventana() (que intenta
-        otros botones y finalmente back físico) y, si aún falla, fuerza back.
-        """
         log.info("  Cerrando pantalla de invocaciones...")
         time.sleep(2)
 
-        # 1. Intentar con el botón específico de back en invocaciones
         screen = self.device.screenshot()
         pos_back = self.vision.find_template(screen, "templates/btn_back_summon.png", threshold=0.85)
         if pos_back:
             log.info("  [✓] Botón back de invocaciones encontrado. Presionando...")
             self.device.tap(pos_back[0], pos_back[1])
             time.sleep(2)
-            # Verificar si realmente salimos
             screen = self.device.screenshot()
             if not self.vision.find_template(screen, "templates/btn_summon_nav.png", threshold=0.8):
                 log.info("  [✓] Salida exitosa de invocaciones.")
                 return
 
-        # 2. Si no funcionó, usar cerrar_ventana() (que tiene fallback a back físico)
         log.warning("  No se encontró btn_back_summon o no funcionó. Usando cerrar_ventana()...")
         self.cerrar_ventana()
         time.sleep(2)
 
-        # 3. Verificar si aún estamos en invocaciones, forzar back físico
         screen = self.device.screenshot()
         if self.vision.find_template(screen, "templates/btn_summon_nav.png", threshold=0.8):
             log.info("  Forzando salida con back físico...")
@@ -858,7 +848,7 @@ class DailyMissions:
 
         log.info("  [✓] Salida de invocaciones completada.")
 
-    def do_spend_mana(self):
+    def do_spend_mana(self) -> bool:
         log.info("💧 Módulo: Sweep de Eventos")
         time.sleep(3)
         eventos = None
@@ -875,7 +865,7 @@ class DailyMissions:
 
         if not eventos:
             log.warning("No se encontraron banners de eventos activos.")
-            return
+            return True
 
         eventos.sort(key=lambda p: p[1])
         mana_agotado = False
@@ -903,6 +893,7 @@ class DailyMissions:
             if not etapa_encontrada:
                 log.info("  Sin etapas EX disponibles en este evento.")
                 self.return_to_home()
+                self.limpiar_banners_home()
                 time.sleep(2)
                 continue
 
@@ -930,7 +921,9 @@ class DailyMissions:
             self.limpiar_banners_home()
             time.sleep(2)
 
-    def claim_all_rewards(self):
+        return True
+
+    def claim_all_rewards(self) -> bool:
         log.info("🎁 Módulo: Reclamar Recompensas")
 
         def _abrir_menu():
@@ -947,8 +940,6 @@ class DailyMissions:
             log.info("  📬 Accediendo al buzón...")
             self.device.tap(pos_mail[0], pos_mail[1])
             time.sleep(2.5)
-
-            log.info("  ⏳ Esperando 1.5 segundos para carga de elementos...")
             time.sleep(1.5)
 
             screen = self.device.screenshot()
@@ -970,7 +961,8 @@ class DailyMissions:
         if not pos_missions:
             log.warning("  [!] No se encontró el ícono de Misiones. Saliendo al Home.")
             self.return_to_home()
-            return
+            self.limpiar_banners_home()
+            return False
 
         log.info("  📋 Accediendo a misiones...")
         self.device.tap(pos_missions[0], pos_missions[1])
@@ -1039,15 +1031,12 @@ class DailyMissions:
 
         log.info("  ✅ Módulo de recompensas completado con éxito.")
 
-        # ── Limpieza de banners antes de volver al home ────────────────────
-        # Igual que en startup: reclamar y cerrar cualquier popup intrusivo
         log.info("  [🧹] Limpiando banners post-misiones antes de volver al Home...")
         MAX_LIMPIEZA = 6
         for _ in range(MAX_LIMPIEZA):
             screen = self.device.screenshot()
             algo = False
 
-            # 1. Botón de claim genérico (ofertas, eventos)
             pos_claim = self.vision.find_template(screen, "templates/btn_claim.png", threshold=0.8)
             if pos_claim:
                 log.debug("    [+] Banner reclamable detectado. Cerrando...")
@@ -1055,7 +1044,6 @@ class DailyMissions:
                 time.sleep(2)
                 algo = True
 
-            # 2. Botón de cerrar X (anuncios, ofertas)
             if not algo:
                 pos_x = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
                 if pos_x:
@@ -1068,4 +1056,6 @@ class DailyMissions:
                 log.debug("    [✓] Sin banners detectados. Limpieza completa.")
                 break
 
-        self.return_to_home()
+        self.cerrar_ventana()
+        self.limpiar_banners_home()
+        return True

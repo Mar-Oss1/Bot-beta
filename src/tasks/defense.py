@@ -26,19 +26,27 @@ EVENTS = [
 ]
 
 SCROLL_PATTERN = [
-    (760, 900, 760, 1400, 0.3),
-    (760, 1400, 400, 1400, 0.5),
-    (400, 1400, 400, 600, 0.5),
-    (400, 600, 1100, 600, 0.5),
-    (1100, 600, 1100, 1600, 0.5),
-    (1100, 1600, 200, 1600, 0.5),
-    (200, 1600, 200, 400, 0.5),
-    (200, 400, 1300, 400, 0.5),
-    (1300, 400, 1300, 1800, 0.5),
-    (1300, 1800, 100, 1800, 0.5),
-    (100, 1800, 100, 200, 0.5),
-    (100, 200, 1400, 200, 0.5),
+    # 1. Bajar (swipe hacia arriba: y1 > y2)
+    # Desde centro (1400,590) hasta borde superior (1400,200)
+    (1400, 590, 1400, 395, 1.0),  # Primera mitad
+    (1400, 395, 1400, 200, 1.0),  # Segunda mitad
+
+    # 2. Izquierda (swipe hacia la derecha: x1 < x2)
+    # Desde (1400,200) hasta borde derecho (1700,200)
+    (1400, 200, 1550, 200, 1.0),  # Primera mitad
+    (1550, 200, 1700, 200, 1.0),  # Segunda mitad
+
+    # 3. Arriba (swipe hacia abajo: y1 < y2)
+    # Desde (1700,200) hasta borde inferior (1700,890)
+    (1700, 200, 1700, 545, 1.0),  # Primera mitad
+    (1700, 545, 1700, 890, 1.0),  # Segunda mitad
+
+    # 4. Derecha (swipe hacia la izquierda: x1 > x2)
+    # Desde (1700,890) hasta borde izquierdo (1000,890)
+    (1700, 890, 1350, 890, 1.0),  # Primera mitad
+    (1350, 890, 1000, 890, 1.0),  # Segunda mitad
 ]
+
 
 class Defense:
     def __init__(self, device, vision, account, db):
@@ -121,6 +129,12 @@ class Defense:
         templates = self._get_alliance_templates()
         log.info("  [🔍] Buscando castillo con templates: %s", templates)
         time.sleep(5)
+        log.info("  [👆] Activando mapa...")
+        self.device.tap(760, 1200)
+        time.sleep(1.0)
+        self.device.tap(760, 1200)
+        time.sleep(1.0)
+
         def check(screen):
             for t in templates:
                 pos = self.vision.find_template(screen, t, threshold=0.82)
@@ -135,7 +149,7 @@ class Defense:
 
         for i, (x1, y1, x2, y2, pausa) in enumerate(SCROLL_PATTERN):
             log.info("  [🔄] Scroll %d/%d...", i + 1, len(SCROLL_PATTERN))
-            self.device.swipe(x1, y1, x2, y2, duration=0.6)
+            self.device.swipe(x1, y1, x2, y2, duration=0.5)
             time.sleep(pausa)
             pos = check(self.device.screenshot())
             if pos:
