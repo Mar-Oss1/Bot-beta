@@ -1,9 +1,3 @@
-"""
-tasks/defense.py
-
-Módulo de defensa automática para Alliance War y War of the Realms.
-"""
-
 import time
 from core.logger import get_logger
 
@@ -26,27 +20,31 @@ ALLIANCE_TEMPLATES = {
     "default": ["templates/alliance_noterindas.png"],
 }
 
-# is_last=True → al terminar va al home completo
-# is_last=False → al terminar solo hace un back para volver al mapa principal
 EVENTS = [
     {"name": "Alliance War", "template": "templates/alliance_war.png", "is_last": False},
     {"name": "War of the Realms", "template": "templates/war_of_the_realms.png", "is_last": True},
 ]
 
 SCROLL_PATTERN = [
-    (760, 1200, 760, 400, 1.5),
-    (760, 400, 760, 1200, 1.5),
-    (760, 1200, 200, 1200, 1.5),
-    (200, 1200, 760, 1200, 1.5),
-    (760, 1200, 400, 600, 1.5),
-    (400, 600, 760, 1200, 1.5),
-    (760, 1200, 1200, 600, 1.5),
-    (1200, 600, 760, 1200, 1.5),
-    (760, 1200, 760, 300, 2.0),
-    (760, 300, 200, 300, 2.0),
-    (200, 300, 200, 1400, 2.0),
-    (200, 1400, 1300, 1400, 2.0),
-    (1300, 1400, 1300, 300, 2.0),
+    # 1. Bajar (swipe hacia arriba: y1 > y2)
+    # Desde centro (1400,590) hasta borde superior (1400,200)
+    (1400, 590, 1400, 395, 1.0),  # Primera mitad
+    (1400, 395, 1400, 200, 1.0),  # Segunda mitad
+
+    # 2. Izquierda (swipe hacia la derecha: x1 < x2)
+    # Desde (1400,200) hasta borde derecho (1700,200)
+    (1400, 200, 1550, 200, 1.0),  # Primera mitad
+    (1550, 200, 1700, 200, 1.0),  # Segunda mitad
+
+    # 3. Arriba (swipe hacia abajo: y1 < y2)
+    # Desde (1700,200) hasta borde inferior (1700,890)
+    (1700, 200, 1700, 545, 1.0),  # Primera mitad
+    (1700, 545, 1700, 890, 1.0),  # Segunda mitad
+
+    # 4. Derecha (swipe hacia la izquierda: x1 > x2)
+    # Desde (1700,890) hasta borde izquierdo (1000,890)
+    (1700, 890, 1350, 890, 1.0),  # Primera mitad
+    (1350, 890, 1000, 890, 1.0),  # Segunda mitad
 ]
 
 
@@ -56,8 +54,6 @@ class Defense:
         self.vision = vision
         self.account = account
         self.db = db
-
-    # ── Helpers ────────────────────────────────────────────────────────────
 
     def _get_alliance_templates(self) -> list:
         if self.account is None:
@@ -84,7 +80,6 @@ class Defense:
         time.sleep(2)
 
     def return_to_home(self):
-        """Vuelve al home y limpia banners."""
         screen = self.device.screenshot()
         pos = self.vision.find_template(screen, "templates/btn_home_nav.png", threshold=0.85)
         if pos:
@@ -101,7 +96,6 @@ class Defense:
                     time.sleep(3)
                     break
 
-        # Limpiar banners post-home
         for _ in range(4):
             screen = self.device.screenshot()
             algo = False
@@ -119,8 +113,6 @@ class Defense:
             if not algo:
                 break
 
-    # ── Flujo de búsqueda ──────────────────────────────────────────────────
-
     def _entrar_evento(self, event: dict) -> bool:
         log.info("  [🗺️] Buscando botón de evento: %s", event["name"])
         screen = self.device.screenshot()
@@ -136,6 +128,12 @@ class Defense:
     def _buscar_castillo(self) -> tuple | None:
         templates = self._get_alliance_templates()
         log.info("  [🔍] Buscando castillo con templates: %s", templates)
+        time.sleep(5)
+        log.info("  [👆] Activando mapa...")
+        self.device.tap(760, 1200)
+        time.sleep(1.0)
+        self.device.tap(760, 1200)
+        time.sleep(1.0)
 
         def check(screen):
             for t in templates:
@@ -151,7 +149,7 @@ class Defense:
 
         for i, (x1, y1, x2, y2, pausa) in enumerate(SCROLL_PATTERN):
             log.info("  [🔄] Scroll %d/%d...", i + 1, len(SCROLL_PATTERN))
-            self.device.swipe(x1, y1, x2, y2, duration=0.6)
+            self.device.swipe(x1, y1, x2, y2, duration=0.5)
             time.sleep(pausa)
             pos = check(self.device.screenshot())
             if pos:
@@ -194,14 +192,8 @@ class Defense:
         return True
 
     def _scrollear_hasta_peloton_20(self):
-        """
-        Scroll del listado de pelotones desde la parte inferior (832)
-        hasta la parte superior (255) para llegar al pelotón 20.
-        X fija: 840 (centro del listado).
-        """
         log.info("  [⬇️] Scrolleando listado hasta pelotón 20...")
         for _ in range(8):
-            # Desde abajo (832) hacia arriba (255) → scroll hacia el fondo
             self.device.swipe(840, 832, 840, 255, duration=0.2)
             time.sleep(0.8)
         time.sleep(1)
@@ -216,7 +208,6 @@ class Defense:
             log.error("  No se encontró ningún botón Defend.")
             return False
 
-        # El más abajo en pantalla = pelotón de mayor número
         todos_defend.sort(key=lambda p: p[1], reverse=True)
         ultimo = todos_defend[0]
         log.info(
@@ -228,33 +219,31 @@ class Defense:
         log.info("  [🛡️] Defensa asignada.")
         return True
 
-    # ── Salida según tipo de evento ────────────────────────────────────────
-
-    def _salir_evento(self, is_last: bool):
+    def _salir_evento(self, is_last: bool, nivel: int = 2):
         time.sleep(1.5)
 
-        # Cerrar listado de pelotones
-        log.info("  [⬅️] Cerrando listado de pelotones...")
-        self.cerrar_ventana()
-        time.sleep(1.5)
+        if nivel == 2:
+            log.info("  [⬅️] Cerrando listado de pelotones...")
+            self.cerrar_ventana()
+            time.sleep(1.5)
+            # ✅ CORRECCIÓN: Después de cerrar pelotones, ya estamos en el mapa del evento
+            # No necesitamos hacer otro back para "salir del menú del castillo"
+            # porque el juego ya nos llevó de vuelta al mapa después de tocar Defend
 
         if is_last:
             log.info("  [🏠] Último evento. Regresando al Home...")
             self.return_to_home()
             time.sleep(2)
         else:
-            log.info("  [⬅️] Saliendo del evento con btn_back...")
+            log.info("  [⬅️] Saliendo del evento al mapa principal...")
             screen = self.device.screenshot()
             pos_back = self.vision.find_template(screen, "templates/btn_back.png", threshold=0.85)
             if pos_back:
                 self.device.tap(pos_back[0], pos_back[1])
-                time.sleep(2)
             else:
                 self.device.d.press("back")
-                time.sleep(2)
+            time.sleep(2)
             log.info("  [✓] Listo para el siguiente evento.")
-
-    # ── Flujo completo por evento ──────────────────────────────────────────
 
     def _defender_en_evento(self, event: dict) -> bool:
         log.info("━" * 45)
@@ -267,32 +256,63 @@ class Defense:
         pos_castillo = self._buscar_castillo()
         if not pos_castillo:
             log.warning("  Sin castillo. Saliendo...")
-            self._salir_evento(event["is_last"])
+            self._salir_evento(event["is_last"], nivel=0)
             return False
 
         if not self._tocar_castillo_y_abrir_menu(pos_castillo):
             log.warning("  Menú no abrió. Saliendo...")
-            self._salir_evento(event["is_last"])
+            self._salir_evento(event["is_last"], nivel=0)
             return False
 
         if not self._abrir_listado_pelotones():
             log.warning("  Pelotones no abrieron. Saliendo...")
-            self._salir_evento(event["is_last"])
+            self._salir_evento(event["is_last"], nivel=1)
             return False
 
         self._scrollear_hasta_peloton_20()
         exito = self._tocar_defend()
-        self._salir_evento(event["is_last"])
+        self._salir_evento(event["is_last"], nivel=2)
 
         return exito
-
-    # ── Punto de entrada ───────────────────────────────────────────────────
 
     def execute(self) -> bool:
         cuenta_label = self.account.name if self.account else "Prueba"
         log.info("=" * 55)
         log.info("🛡️  Módulo de Defensa — %s", cuenta_label)
         log.info("=" * 55)
+
+        # ✅ Detectar si estamos en el mapa de warfare buscando los botones exclusivos del mapa
+        screen = self.device.screenshot()
+        resultado = self.vision.find_any(
+            screen,
+            ["templates/alliance_war.png", "templates/war_of_the_realms.png"],
+            threshold=0.85
+        )
+
+        if not resultado:
+            # No estamos en warfare, intentar entrar desde home
+            log.info("  [🗺️] No estamos en el mapa de warfare. Intentando entrar desde Home...")
+            pos_battalion = self.vision.find_template(screen, "templates/btn_battalion_warfare.png", threshold=0.85)
+            if pos_battalion:
+                log.info("  [🗺️] Botón Battalion Warfare encontrado en Home. Entrando...")
+                self.device.tap(pos_battalion[0], pos_battalion[1])
+                time.sleep(4)
+
+                # Verificar que entramos correctamente
+                screen = self.device.screenshot()
+                resultado = self.vision.find_any(
+                    screen,
+                    ["templates/alliance_war.png", "templates/war_of_the_realms.png"],
+                    threshold=0.85
+                )
+                if not resultado:
+                    log.error("  ❌ No se pudo entrar al mapa de warfare.")
+                    return False
+            else:
+                log.error("  ❌ No se encontró btn_battalion_warfare. ¿Estás en el home?")
+                return False
+        else:
+            log.info("  [✓] Ya estamos en el mapa de warfare (detectado: %s).", resultado[0])
 
         resultados = {}
         for event in EVENTS:

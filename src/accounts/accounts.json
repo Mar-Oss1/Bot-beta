@@ -56,7 +56,7 @@
       "id": 6,
       "name": "Somnial",
       "serial": "M9C5HHMF2Y2D",
-      "enabled": true,
+      "enabled": false,
       "priority": 6,
       "notes": "",
       "servers": []
