@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import pytesseract
 import os
-import time  # ← NUEVO: necesario para wait_for_template
+import time
 from core.config import TESSERACT_CMD, PROJECT_ROOT
 from core.logger import get_logger
 
@@ -78,16 +78,27 @@ class Vision:
         rects, _ = cv2.groupRectangles(rects, groupThreshold=1, eps=0.2)
         return [(x + w // 2, y + h // 2) for (x, y, w, h) in rects]
 
-    def find_any(self, screenshot, template_paths: list):
-        """Prueba múltiples templates y retorna el primero que encuentre."""
+    def find_any(self, screenshot, template_paths: list, threshold: float = None):
+        """
+        Prueba múltiples templates y retorna el primero que encuentre.
+
+        Args:
+            screenshot: Captura de pantalla
+            template_paths: Lista de rutas de templates a buscar
+            threshold: Umbral de coincidencia (default: usa self.threshold)
+
+        Returns:
+            (template_path, center_x, center_y) si encuentra alguno
+            None si no encuentra ninguno
+        """
         for path in template_paths:
-            result = self.find_template(screenshot, path)
+            result = self.find_template(screenshot, path, threshold)
             if result:
                 return (path, result[0], result[1])
         return None
 
     # ──────────────────────────────────────────
-    # ⭐ NUEVA FUNCIÓN: ESPERA INTELIGENTE ⭐
+    # ⭐ ESPERA INTELIGENTE ⭐
     # ──────────────────────────────────────────
     def wait_for_template(
             self,
@@ -113,15 +124,6 @@ class Vision:
         Returns:
             (center_x, center_y) si encuentra el template
             None si se agota el timeout
-
-        Ejemplo de uso:
-            pos = vision.wait_for_template(
-                device.screenshot,
-                "templates/btn_ok.png",
-                timeout=10
-            )
-            if pos:
-                device.tap(pos[0], pos[1])
         """
         threshold = threshold if threshold is not None else self.threshold
         inicio = time.time()
@@ -180,17 +182,7 @@ class Vision:
         Returns:
             True si la pantalla se estabilizó
             False si se agotó el timeout
-
-        Ejemplo:
-            # Después de abrir el juego, esperar a que carguen todos los banners
-            dev.open_app()
-            vis.wait_for_screen_stable(dev.screenshot, timeout=15)
-            # Ahora sí, la pantalla está lista para interactuar
         """
-        import time
-        from core.logger import get_logger
-        log = get_logger("vision.stability")
-
         inicio = time.time()
         screenshot_anterior = None
         checks_estables = 0
@@ -205,7 +197,6 @@ class Vision:
                 screen_gray = cv2.cvtColor(screen_cv, cv2.COLOR_BGR2GRAY)
 
                 if screenshot_anterior is not None:
-                    # Calcular similitud entre screenshots
                     diff = cv2.absdiff(screenshot_anterior, screen_gray)
                     non_zero = cv2.countNonZero(diff)
                     total_pixels = screen_gray.size
@@ -223,7 +214,7 @@ class Vision:
                                 log.debug("✅ Pantalla estable tras %.2fs", elapsed)
                             return True
                     else:
-                        checks_estables = 0  # Reset si hay cambio
+                        checks_estables = 0
 
                 screenshot_anterior = screen_gray
                 time.sleep(interval)
@@ -235,7 +226,7 @@ class Vision:
         elapsed = time.time() - inicio
         log.warning("⏱️  Timeout esperando estabilidad de pantalla tras %.2fs", elapsed)
         return False
-    
+
     # ──────────────────────────────────────────
     # OCR
     # ──────────────────────────────────────────

@@ -281,6 +281,39 @@ class Defense:
         log.info("🛡️  Módulo de Defensa — %s", cuenta_label)
         log.info("=" * 55)
 
+        # ✅ Detectar si estamos en el mapa de warfare buscando los botones exclusivos del mapa
+        screen = self.device.screenshot()
+        resultado = self.vision.find_any(
+            screen,
+            ["templates/alliance_war.png", "templates/war_of_the_realms.png"],
+            threshold=0.85
+        )
+
+        if not resultado:
+            # No estamos en warfare, intentar entrar desde home
+            log.info("  [🗺️] No estamos en el mapa de warfare. Intentando entrar desde Home...")
+            pos_battalion = self.vision.find_template(screen, "templates/btn_battalion_warfare.png", threshold=0.85)
+            if pos_battalion:
+                log.info("  [🗺️] Botón Battalion Warfare encontrado en Home. Entrando...")
+                self.device.tap(pos_battalion[0], pos_battalion[1])
+                time.sleep(4)
+
+                # Verificar que entramos correctamente
+                screen = self.device.screenshot()
+                resultado = self.vision.find_any(
+                    screen,
+                    ["templates/alliance_war.png", "templates/war_of_the_realms.png"],
+                    threshold=0.85
+                )
+                if not resultado:
+                    log.error("  ❌ No se pudo entrar al mapa de warfare.")
+                    return False
+            else:
+                log.error("  ❌ No se encontró btn_battalion_warfare. ¿Estás en el home?")
+                return False
+        else:
+            log.info("  [✓] Ya estamos en el mapa de warfare (detectado: %s).", resultado[0])
+
         resultados = {}
         for event in EVENTS:
             exito = self._defender_en_evento(event)
