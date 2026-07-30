@@ -56,7 +56,7 @@
       "id": 6,
       "name": "Somnial",
       "serial": "M9C5HHMF2Y2D",
-      "enabled": false,
+      "enabled": true,
       "priority": 6,
       "notes": "",
       "servers": []
@@ -83,7 +83,7 @@
       "id": 9,
       "name": "Jiren / sami",
       "serial": "HRBZG387V5GN",
-      "enabled": true,
+      "enabled": false,
       "priority": 9,
       "notes": "Multi-server",
       "servers": [
@@ -99,7 +99,7 @@
       "id": 10,
       "name": "Link123",
       "serial": "PNXZDR77HKY7",
-      "enabled": true,
+      "enabled": false,
       "priority": 10,
       "notes": "",
       "servers": []
@@ -108,7 +108,7 @@
       "id": 11,
       "name": "Omega123",
       "serial": "KR3Z2PGMDHXM",
-      "enabled": true,
+      "enabled": false,
       "priority": 11,
       "notes": "",
       "servers": []
@@ -117,7 +117,7 @@
       "id": 12,
       "name": "Y U M E",
       "serial": "kp3p8cc18zy1",
-      "enabled": true,
+      "enabled": false,
       "priority": 12,
       "notes": "",
       "servers": []
@@ -126,7 +126,7 @@
       "id": 13,
       "name": "アラン",
       "serial": "n1ht487p4y6c",
-      "enabled": true,
+      "enabled": false,
       "priority": 13,
       "notes": "",
       "servers": []

@@ -96,7 +96,7 @@ class Startup:
 
     def handle_comeback_bonus(self):
         eventos_reclamados = False
-        MAX_SCROLLS = 5
+        MAX_SCROLLS = 3
 
         # ── Página 1: Returner's Bonus ────────────────────────────────────
         while True:
