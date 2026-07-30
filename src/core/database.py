@@ -13,13 +13,13 @@ PROGRESS_FILE = "accounts/progress.json"
 class Account:
     def __init__(self, config: dict, progress_data: dict = None):
         # ── Configuración fija (viene de accounts.json) ────────────────────
-        self.id       = config.get("id")
-        self.name     = config.get("name")
-        self.serial   = config.get("serial")
-        self.enabled  = config.get("enabled", True)
+        self.id = config.get("id")
+        self.name = config.get("name")
+        self.serial = config.get("serial")
+        self.enabled = config.get("enabled", True)
         self.priority = config.get("priority", 1)
-        self.notes    = config.get("notes", "")
-        self.servers  = config.get("servers", [])
+        self.notes = config.get("notes", "")
+        self.servers = config.get("servers", [])
 
         # ── Estado mutable (viene de progress.json) ────────────────────────
         p = progress_data or {}
@@ -31,20 +31,20 @@ class Account:
     def to_config(self) -> dict:
         """Solo la configuración fija → accounts.json"""
         return {
-            "id":       self.id,
-            "name":     self.name,
-            "serial":   self.serial,
-            "enabled":  self.enabled,
+            "id": self.id,
+            "name": self.name,
+            "serial": self.serial,
+            "enabled": self.enabled,
             "priority": self.priority,
-            "notes":    self.notes,
-            "servers":  self.servers,
+            "notes": self.notes,
+            "servers": self.servers,
         }
 
     def to_progress(self) -> dict:
         """Solo el estado mutable → progress.json"""
         return {
             "last_run": self.last_run,
-            "days":     self.progress,
+            "days": self.progress,
         }
 
     # ── Lógica de progreso ─────────────────────────────────────────────────
@@ -55,9 +55,9 @@ class Account:
 
         default_tasks = {
             "daily_missions": False,
-           # "events":         False,
-            #"story":          False,
-            "login_bonus":    False,
+            # "events":         False,
+            # "story":          False,
+            "login_bonus": False,
         }
 
         if server_id:
@@ -104,7 +104,7 @@ class Account:
         return [t for t in all_tasks if not tp.get(t, False)]
 
     def completion_percent(self):
-        all_tasks = ["login_bonus", "daily_missions",]
+        all_tasks = ["login_bonus", "daily_missions", ]
 
         if self.servers:
             total = len(all_tasks) * len(self.servers)
@@ -130,6 +130,18 @@ class Account:
     def has_failed_too_many_times(self, limit=2):
         today = str(date.today())
         return self.progress.get(today, {}).get("login_fail_count", 0) >= limit
+
+    def get_server_config(self, server_id):
+        for s in self.servers:
+            if s.get("server_id") == server_id:
+                return s
+        return None
+
+    def is_vip_server(self, server_id):
+        cfg = self.get_server_config(server_id)
+        if cfg:
+            return cfg.get("vip", False)
+        return False
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -222,13 +234,13 @@ class Database:
         """Agrega una cuenta nueva"""
         new_id = max([a.id for a in self.accounts], default=0) + 1
         config = {
-            "id":       new_id,
-            "name":     name,
-            "serial":   serial,
-            "enabled":  True,
+            "id": new_id,
+            "name": name,
+            "serial": serial,
+            "enabled": True,
             "priority": priority,
-            "notes":    notes,
-            "servers":  servers or [],
+            "notes": notes,
+            "servers": servers or [],
         }
         account = Account(config=config, progress_data={})
         self.accounts.append(account)
@@ -247,8 +259,8 @@ class Database:
         pending = [
             a for a in self.accounts
             if a.enabled
-            and not a.has_failed_too_many_times(limit=2)
-            and len(a.pending_tasks()) > 0
+               and not a.has_failed_too_many_times(limit=2)
+               and len(a.pending_tasks()) > 0
         ]
         return sorted(pending, key=lambda a: a.priority)
 
