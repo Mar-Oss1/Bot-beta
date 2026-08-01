@@ -50,15 +50,15 @@ MONSTER_TYPES = {
 }
 
 MONSTER_POSITIONS = [
-    {"y": 260, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0, "power_y_offset": 0},
-    {"y": 420, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0, "power_y_offset": 0},
-    {"y": 560, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0, "power_y_offset": 0},
-    {"y": 700, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0, "power_y_offset": 0},
-    {"y": 850, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0, "power_y_offset": 0},
+    {"y": 260, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
+    {"y": 410, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
+    {"y": 550, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
+    {"y": 705, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
+    {"y": 855, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
 ]
 
 ICON_HALF_W = 70
-ICON_HALF_H = 60
+ICON_HALF_H = 70
 
 POWER_HALF_W_LEFT = 80
 POWER_HALF_W_RIGHT = 150
@@ -133,18 +133,18 @@ class Raid(BaseTask):
         time.sleep(1)
 
     # ---- Funciones de análisis (igual que la versión que funcionaba) ----
-    def _leer_poder(self,screenshot,x: int,y: int,power_y_offset: int = 0) -> int:
+    def _leer_poder(self, screenshot, x: int, y: int, power_y_offset: int = 0) -> int:
         """Extrae el poder del monstruo usando OCR mejorado con ROI dinámico."""
         try:
             screen_cv = self.vision.pil_to_cv2(screenshot)
             h, w = screen_cv.shape[:2]
 
-            # ROI centrado en x, con margen horizontal amplio (300 px a cada lado)
+            # ROI centrado en x, con margen horizontal amplio (200 px a cada lado)
             offset = 200
             x1 = max(0, x - offset + 75)
             x2 = min(w, x + offset)
-            y1 = max(0, y - 40)
-            y2 = min(h, y + 40)
+            y1 = max(0, y - 20)
+            y2 = min(h, y + 20)
 
             roi = screen_cv[y1:y2, x1:x2]
 
@@ -295,23 +295,9 @@ class Raid(BaseTask):
         return monstruos
 
     def _generar_plan_batallas(self, monstruos: list) -> list:
-        """
-        Genera un plan de 3 batallas siguiendo jerarquía estricta.
-
-        Reglas:
-        - 3+ monstruos de máxima prioridad:
-            atacar a los 3 más fuertes.
-        - 2 monstruos de máxima prioridad:
-            2 ataques al más fuerte y 1 al segundo.
-        - 1 monstruo de máxima prioridad:
-            3 ataques al mismo monstruo.
-        """
-
         if not monstruos:
             return []
 
-        # Ya vienen ordenados por prioridad y poder,
-        # pero lo aseguramos.
         monstruos.sort(
             key=lambda m: (m["priority"], -m["power"])
         )

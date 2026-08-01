@@ -4,7 +4,7 @@
       "id": 1,
       "name": "Mcbeth/Beth",
       "serial": "B5DF7BWQLEYM",
-      "enabled": true,
+      "enabled": false,
       "priority": 1,
       "notes": "Multi-server",
       "servers": [
@@ -20,7 +20,7 @@
       "id": 2,
       "name": "Mini Beth",
       "serial": "JD6C633CGJHT",
-      "enabled": true,
+      "enabled": false,
       "priority": 2,
       "notes": "",
       "servers": []
@@ -29,7 +29,7 @@
       "id": 3,
       "name": "BENKEI",
       "serial": "ggnk6ex67cme",
-      "enabled": true,
+      "enabled": false,
       "priority": 3,
       "notes": "",
       "servers": []
@@ -38,7 +38,7 @@
       "id": 4,
       "name": "Yukimura",
       "serial": "zy796k93rrwm",
-      "enabled": true,
+      "enabled": false,
       "priority": 4,
       "notes": "",
       "servers": []
@@ -47,7 +47,7 @@
       "id": 5,
       "name": "ASRA",
       "serial": "KTD2LRPHARZE",
-      "enabled": true,
+      "enabled": false,
       "priority": 5,
       "notes": "",
       "servers": []
