@@ -1,4 +1,3 @@
-# main.py
 import sys
 import os
 import time
@@ -153,6 +152,8 @@ def menu_interactivo():
     dev = Device()
     vis = Vision(threshold=0.8)
 
+    vis.preload_templates("templates")
+
     log.info("Conectando al dispositivo...")
     if not dev.connect():
         log.critical("No se pudo conectar al dispositivo. Saliendo.")
@@ -208,16 +209,12 @@ def menu_interactivo():
             veces = int(input("¿Cuántas veces ejecutar? (default 1): ").strip() or "1")
             DailyMissions(dev, vis, account=None, db=None).do_premium_summons(veces=veces)
 
-
-
         elif opcion == "9":
             print("\n--- Asedios/Raids Automáticos para todas las cuentas---")
             ejecutar_raids_para_todas(db, dev, vis, force=True)
 
         elif opcion == "10":
             print("\n--- Defensa War (Manual) ---")
-            # Para modo manual, pedimos cuenta y servidor o usamos la actual
-            # Podríamos implementar selección de cuenta, pero por ahora ejecutamos en la cuenta actual
             log.info("Ejecutando Defensa en la cuenta actual (sin persistencia).")
             Defense(dev, vis, account=None, db=None).execute()
 

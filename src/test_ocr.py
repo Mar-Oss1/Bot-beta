@@ -8,7 +8,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 
 def probar_ocr_gemas():
     # 1. Archivo de prueba
-    screen_path = "pantalla_test.png"
+    screen_path = "captura_UI_1785718634.png"
 
     if not os.path.exists(screen_path):
         print(f"❌ No encontré el archivo {screen_path}. Tómale una captura al juego.")

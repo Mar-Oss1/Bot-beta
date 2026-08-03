@@ -1,6 +1,6 @@
 {
   "Version": 23,
-  "Time": 1781858947,
+  "Time": 1785136906,
   "Monster": [
     {
       "name": "HammerPantsThief01",
@@ -10868,12 +10868,16 @@
       "leaderBuff": "AttackAndHPUp5Fire",
       "leaderBuffCondition": "IsFire",
       "activeSkills": {
-        "0": "SakuraSweepAKojiroRegular"
+        "0": "GainAttackSingleA",
+        "1": "BasicAttackAllA2Fire",
+        "2": "BurnSelfA",
+        "3": "BurnBlastA"
       },
       "passives": {
-        "0": "RegenerationOnMyTurnGetTurnSkinA",
-        "1": "StunImmunity",
-        "2": "SleepImmunity"
+        "2": "AttackUpTargetEquippedHammerLv2",
+        "3": "PlusHPBoostLv2",
+        "4": "PlusAttackBoostLv2",
+        "5": "AddWeaponPrefMace"
       },
       "cost": 23,
       "baseAttack": 763,
@@ -74279,6 +74283,7 @@
       "consolationMultiplier": 0,
       "battleOrbImageFlip": 0,
       "attackType": "Bash",
+      "visible": 1,
       "summonableMonsters": [
         "JeanneFusion01"
       ],
@@ -74393,6 +74398,659 @@
       "summonableMatchSource": [
         true
       ],
+      "skillVoices": {
+        "0": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "1": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "2": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "3": [
+          13,
+          14,
+          15,
+          16
+        ]
+      },
+      "damageVoices": [
+        17,
+        18,
+        19,
+        20
+      ],
+      "deathVoices": [
+        21,
+        22,
+        23,
+        24
+      ],
+      "victoryVoices": [
+        25,
+        26
+      ],
+      "lineupVoices": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "evolutionVoices": [
+        38
+      ],
+      "trainVoices": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        39,
+        40,
+        41,
+        42,
+        43
+      ],
+      "titleVoices": [
+        44
+      ],
+      "gachaVoices": [
+        45
+      ],
+      "loginVoices": [
+        46
+      ],
+      "tapVoices": [
+        47,
+        48,
+        49
+      ],
+      "idleVoices": [
+        50
+      ]
+    },
+    {
+      "name": "BasiliskRegular01",
+      "family": "BasiliskRegular",
+      "class": "Monster",
+      "leaderBuff": "AttackAndHPUp6Fire",
+      "leaderBuffCondition": "IsFire",
+      "activeSkills": {
+        "0": "DoubleAttackABasiliskRegular",
+        "1": "SingleAttackABasiliskRegular",
+        "2": "AllyAndEnemyBuffABasiliskRegular"
+      },
+      "passives": {
+        "0": "StrikingPassiveABasiliskRegular",
+        "1": "TurnToStonePassiveABasiliskRegular",
+        "2": "PlusAttackBoostLv3",
+        "3": "PlusHPBoostLv3",
+        "4": "GreatSwordMinusDamageLv3",
+        "5": "AddWeaponPrefGreatSword"
+      },
+      "cost": 28,
+      "baseAttack": 1082,
+      "baseMaxHp": 5800,
+      "speed": 514,
+      "element": "Fire",
+      "weaponPref": "GreatAxe",
+      "weaponPivotIndex": 0,
+      "secure": 1,
+      "superEvolve1": "BasiliskRegular02",
+      "aiTargetPickWeight": 1,
+      "stars": 5,
+      "evolvedStars": 6,
+      "goldMultiplier": 1,
+      "consolationMultiplier": 0,
+      "battleOrbImageFlip": 0,
+      "attackType": "Bash",
+      "visible": 1,
+      "skillVoices": {
+        "0": [
+          1,
+          2
+        ],
+        "1": [
+          13,
+          14
+        ],
+        "2": [
+          9,
+          10
+        ],
+        "3": [
+          5,
+          6
+        ]
+      },
+      "damageVoices": [
+        17,
+        18
+      ],
+      "deathVoices": [
+        21,
+        22
+      ],
+      "victoryVoices": [
+        25
+      ],
+      "lineupVoices": [
+        27,
+        28,
+        29
+      ],
+      "evolutionVoices": [
+        38
+      ],
+      "trainVoices": [
+        33,
+        34,
+        35,
+        36,
+        37
+      ],
+      "titleVoices": [
+        44
+      ],
+      "gachaVoices": [
+        45
+      ],
+      "loginVoices": [
+        46
+      ],
+      "tapVoices": [
+        47,
+        48,
+        49
+      ],
+      "idleVoices": [
+        50
+      ]
+    },
+    {
+      "name": "BasiliskRegular02",
+      "family": "BasiliskRegular",
+      "class": "Monster",
+      "leaderBuff": "AttackAndHPUp6Fire",
+      "leaderBuffCondition": "IsFire",
+      "activeSkills": {
+        "0": "DoubleAttackABasiliskRegular",
+        "1": "SingleAttackABasiliskRegular",
+        "2": "AllyAndEnemyBuffABasiliskRegular",
+        "3": "EnemyBuffABasiliskRegular"
+      },
+      "passives": {
+        "0": "StrikingPassiveABasiliskRegular",
+        "1": "TurnToStonePassiveABasiliskRegular",
+        "2": "PlusAttackBoostLv3",
+        "3": "PlusHPBoostLv3",
+        "4": "GreatSwordMinusDamageLv3",
+        "5": "AddWeaponPrefGreatSword"
+      },
+      "cost": 34,
+      "baseAttack": 1322,
+      "baseMaxHp": 7810,
+      "speed": 514,
+      "element": "Fire",
+      "weaponPref": "GreatAxe",
+      "weaponPivotIndex": 0,
+      "secure": 1,
+      "evolveFrom": "BasiliskRegular01",
+      "aiTargetPickWeight": 1,
+      "stars": 6,
+      "evolvedStars": 6,
+      "goldMultiplier": 1,
+      "consolationMultiplier": 0,
+      "battleOrbImageFlip": 1,
+      "attackType": "Bash",
+      "cosmoName": "BasiliskRegular03",
+      "skillVoices": {
+        "0": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "1": [
+          13,
+          14,
+          15,
+          16
+        ],
+        "2": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "3": [
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      "damageVoices": [
+        17,
+        18,
+        19,
+        20
+      ],
+      "deathVoices": [
+        21,
+        22,
+        23,
+        24
+      ],
+      "victoryVoices": [
+        25,
+        26
+      ],
+      "lineupVoices": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "evolutionVoices": [
+        38
+      ],
+      "trainVoices": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        39,
+        40,
+        41,
+        42,
+        43
+      ],
+      "titleVoices": [
+        44
+      ],
+      "gachaVoices": [
+        45
+      ],
+      "loginVoices": [
+        46
+      ],
+      "tapVoices": [
+        47,
+        48,
+        49
+      ],
+      "idleVoices": [
+        50
+      ]
+    },
+    {
+      "name": "ManchesterRegular01",
+      "family": "ManchesterRegular",
+      "class": "Monster",
+      "leaderBuff": "AttackAndHPUp6Earth",
+      "leaderBuffCondition": "IsEarth",
+      "activeSkills": {
+        "0": "SingleAttackAManchesterRegular",
+        "1": "AllyAndEnemyBuffAManchesterRegular",
+        "2": "SelfBuffAManchesterRegular"
+      },
+      "passives": {
+        "0": "GrassRootsPassiveAManchesterRegular",
+        "1": "BattlewornPassiveAManchesterRegular",
+        "2": "PlusHPBoostLv3",
+        "3": "PlusAttackBoostLv3",
+        "4": "Sleep20TUMinus",
+        "5": "AddWeaponPrefGreatAxe"
+      },
+      "cost": 28,
+      "baseAttack": 1109,
+      "baseMaxHp": 5665,
+      "speed": 568,
+      "element": "Earth",
+      "weaponPref": "GreatSword",
+      "weaponPivotIndex": 0,
+      "secure": 1,
+      "superEvolve1": "ManchesterRegular02",
+      "aiTargetPickWeight": 1,
+      "stars": 5,
+      "evolvedStars": 6,
+      "goldMultiplier": 1,
+      "consolationMultiplier": 0,
+      "battleOrbImageFlip": 0,
+      "attackType": "Bash",
+      "visible": 1,
+      "skillVoices": {
+        "0": [
+          1,
+          2
+        ],
+        "1": [
+          5,
+          6
+        ],
+        "2": [
+          9,
+          10
+        ],
+        "3": [
+          13,
+          14
+        ]
+      },
+      "damageVoices": [
+        17,
+        18
+      ],
+      "deathVoices": [
+        21,
+        22
+      ],
+      "victoryVoices": [
+        25
+      ],
+      "lineupVoices": [
+        27,
+        28,
+        29
+      ],
+      "evolutionVoices": [
+        38
+      ],
+      "trainVoices": [
+        33,
+        34,
+        35,
+        36,
+        37
+      ],
+      "titleVoices": [
+        44
+      ],
+      "gachaVoices": [
+        45
+      ],
+      "loginVoices": [
+        46
+      ],
+      "tapVoices": [
+        47,
+        48,
+        49
+      ],
+      "idleVoices": [
+        50
+      ]
+    },
+    {
+      "name": "ManchesterRegular02",
+      "family": "ManchesterRegular",
+      "class": "Monster",
+      "leaderBuff": "AttackAndHPUp6Earth",
+      "leaderBuffCondition": "IsEarth",
+      "activeSkills": {
+        "0": "SingleAttackAManchesterRegular",
+        "1": "AllyAndEnemyBuffAManchesterRegular",
+        "2": "SelfBuffAManchesterRegular",
+        "3": "AllAttackAManchesterRegular"
+      },
+      "passives": {
+        "0": "GrassRootsPassiveAManchesterRegular",
+        "1": "BattlewornPassiveAManchesterRegular",
+        "2": "PlusHPBoostLv3",
+        "3": "PlusAttackBoostLv3",
+        "4": "Sleep20TUMinus",
+        "5": "AddWeaponPrefGreatAxe"
+      },
+      "cost": 34,
+      "baseAttack": 1407,
+      "baseMaxHp": 7385,
+      "speed": 568,
+      "element": "Earth",
+      "weaponPref": "GreatSword",
+      "weaponPivotIndex": 0,
+      "secure": 1,
+      "evolveFrom": "ManchesterRegular01",
+      "aiTargetPickWeight": 1,
+      "stars": 6,
+      "evolvedStars": 6,
+      "goldMultiplier": 1,
+      "consolationMultiplier": 0,
+      "battleOrbImageFlip": 0,
+      "attackType": "Bash",
+      "cosmoName": "ManchesterRegular03",
+      "skillVoices": {
+        "0": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "1": [
+          5,
+          6,
+          7,
+          8
+        ],
+        "2": [
+          9,
+          10,
+          11,
+          12
+        ],
+        "3": [
+          13,
+          14,
+          15,
+          16
+        ]
+      },
+      "damageVoices": [
+        17,
+        18,
+        19,
+        20
+      ],
+      "deathVoices": [
+        21,
+        22,
+        23,
+        24
+      ],
+      "victoryVoices": [
+        25,
+        26
+      ],
+      "lineupVoices": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "evolutionVoices": [
+        38
+      ],
+      "trainVoices": [
+        33,
+        34,
+        35,
+        36,
+        37,
+        39,
+        40,
+        41,
+        42,
+        43
+      ],
+      "titleVoices": [
+        44
+      ],
+      "gachaVoices": [
+        45
+      ],
+      "loginVoices": [
+        46
+      ],
+      "tapVoices": [
+        47,
+        48,
+        49
+      ],
+      "idleVoices": [
+        50
+      ]
+    },
+    {
+      "name": "LuBuDark01",
+      "family": "LuBuDark",
+      "class": "Monster",
+      "leaderBuff": "AttackUpEarthD",
+      "leaderBuffCondition": "IsEarth",
+      "activeSkills": {
+        "0": "DoubleAttackALuBuDark",
+        "1": "EnemyBuffALuBuDark",
+        "2": "RandomEnemyBuffALuBuDark"
+      },
+      "passives": {
+        "0": "StrongStartPassiveALuBuDark",
+        "1": "BattlePassiveALuBuDark",
+        "2": "PlusAttackBoostLv3",
+        "3": "PlusHPBoostLv3",
+        "4": "AirMinusDamageLv3",
+        "5": "AddWeaponPrefHammer"
+      },
+      "cost": 28,
+      "baseAttack": 1241,
+      "baseMaxHp": 5005,
+      "speed": 603,
+      "element": "Earth",
+      "weaponPref": "GreatSword",
+      "weaponPivotIndex": 0,
+      "secure": 1,
+      "superEvolve1": "LuBuDark02",
+      "aiTargetPickWeight": 1,
+      "stars": 5,
+      "evolvedStars": 6,
+      "goldMultiplier": 1,
+      "consolationMultiplier": 0,
+      "battleOrbImageFlip": 0,
+      "attackType": "Bash",
+      "skillVoices": {
+        "0": [
+          1,
+          2
+        ],
+        "1": [
+          5,
+          6
+        ],
+        "2": [
+          9,
+          10
+        ],
+        "3": [
+          13,
+          14
+        ]
+      },
+      "damageVoices": [
+        17,
+        18
+      ],
+      "deathVoices": [
+        21,
+        22
+      ],
+      "victoryVoices": [
+        25
+      ],
+      "lineupVoices": [
+        27,
+        28,
+        29
+      ],
+      "evolutionVoices": [
+        38
+      ],
+      "trainVoices": [
+        33,
+        34,
+        35,
+        36,
+        37
+      ],
+      "titleVoices": [
+        44
+      ],
+      "gachaVoices": [
+        45
+      ],
+      "loginVoices": [
+        46
+      ],
+      "tapVoices": [
+        47,
+        48,
+        49
+      ],
+      "idleVoices": [
+        50
+      ]
+    },
+    {
+      "name": "LuBuDark02",
+      "family": "LuBuDark",
+      "class": "Monster",
+      "leaderBuff": "AttackUpEarthD",
+      "leaderBuffCondition": "IsEarth",
+      "activeSkills": {
+        "0": "DoubleAttackALuBuDark",
+        "1": "EnemyBuffALuBuDark",
+        "2": "RandomEnemyBuffALuBuDark",
+        "3": "SingleAttackALuBuDark"
+      },
+      "passives": {
+        "0": "StrongStartPassiveALuBuDark",
+        "1": "BattlePassiveALuBuDark",
+        "2": "PlusAttackBoostLv3",
+        "3": "PlusHPBoostLv3",
+        "4": "AirMinusDamageLv3",
+        "5": "AddWeaponPrefHammer"
+      },
+      "cost": 34,
+      "baseAttack": 1423,
+      "baseMaxHp": 7305,
+      "speed": 603,
+      "element": "Earth",
+      "weaponPref": "GreatSword",
+      "weaponPivotIndex": 0,
+      "secure": 1,
+      "evolveFrom": "LuBuDark01",
+      "aiTargetPickWeight": 1,
+      "stars": 6,
+      "evolvedStars": 6,
+      "goldMultiplier": 1,
+      "consolationMultiplier": 0,
+      "battleOrbImageFlip": 1,
+      "attackType": "Bash",
+      "cosmoName": "LuBuDark03",
       "skillVoices": {
         "0": [
           1,

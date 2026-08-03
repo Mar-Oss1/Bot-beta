@@ -12,7 +12,8 @@
           "server_id": "SA-3"
         },
         {
-          "server_id": "SA-6"
+          "server_id": "SA-6",
+          "vip": true
         }
       ]
     },
@@ -59,7 +60,12 @@
       "enabled": true,
       "priority": 6,
       "notes": "",
-      "servers": []
+      "servers": [
+        {
+          "server_id": "SA-9",
+          "vip": true
+        }
+      ]
     },
     {
       "id": 7,
@@ -68,7 +74,12 @@
       "enabled": true,
       "priority": 7,
       "notes": "",
-      "servers": []
+      "servers": [
+        {
+          "server_id": "SA-9",
+          "vip": true
+        }
+      ]
     },
     {
       "id": 8,
@@ -77,7 +88,12 @@
       "enabled": true,
       "priority": 8,
       "notes": "",
-      "servers": []
+      "servers": [
+        {
+          "server_id": "SA-9",
+          "vip": true
+        }
+      ]
     },
     {
       "id": 9,

@@ -53,7 +53,7 @@ def patch_evertale_files():
             data = json.load(f)
 
         for monster in data.get("Monster", []):
-            if monster.get("name") == "AztecWarrior01":
+            if monster.get("name") == "Hero01": #AztecWarrior01 and Hero01
                 monster["activeSkills"] = {"0": "SakuraSweepAKojiroRegular"}
 
                 # Agregando las pasivas solicitadas: anti-stun, anti-sleep y contraataque
