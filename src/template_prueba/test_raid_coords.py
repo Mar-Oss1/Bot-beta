@@ -52,8 +52,8 @@ MONSTER_TYPES = {
 
 MONSTER_POSITIONS = [
     {"y": 260, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
-    {"y": 420, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
-    {"y": 560, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
+    {"y": 410, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
+    {"y": 550, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
     {"y": 700, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
     {"y": 850, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
 ]
@@ -172,8 +172,6 @@ def probar_coordenadas(image_path):
         cv2.circle(img_draw, (enter_x, y), 10, (255, 0, 0), -1)
         cv2.circle(img_draw, (icon_x, y), 10, (0, 0, 255), -1)
 
-        # Poder
-        # Poder — offset asimétrico + su propio offset vertical calibrable
         power_y = y + pos.get("power_y_offset", 0)
         x1 = max(0, power_x - POWER_HALF_W_LEFT)
         x2 = min(w, power_x + POWER_HALF_W_RIGHT)

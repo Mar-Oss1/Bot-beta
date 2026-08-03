@@ -1,6 +1,6 @@
 {
   "Version": 23,
-  "Time": 1782120409,
+  "Time": 1785136906,
   "Ability": [
     {
       "name": "SkipTurn",
@@ -24708,8 +24708,7 @@
       "useLimit": 0,
       "spiritCost": 0,
       "blockTargetManipulation": 0,
-      "showConfirmation": 0,
-      "spiritGain": 10
+      "showConfirmation": 0
     },
     {
       "name": "MegaSelfBuffAKojiroRegular",
@@ -29977,6 +29976,310 @@
       "config": "AllAttackAJeanneFusion",
       "tuCost": 75,
       "useLimit": 0,
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "DoubleAttackABasiliskRegular",
+      "class": "Ability",
+      "abilityScalor": 4,
+      "conditionalAbilityScalors": [
+        6.5,
+        9
+      ],
+      "config": "DoubleAttackABasiliskRegular",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackABasiliskRegular",
+      "class": "Ability",
+      "abilityScalor": 7,
+      "conditionalAbilityScalors": [
+        11
+      ],
+      "config": "SingleAttackABasiliskRegular",
+      "tuCost": 75,
+      "useLimit": 0,
+      "spiritCost": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllyAndEnemyBuffABasiliskRegular",
+      "class": "Ability",
+      "config": "AllyAndEnemyBuffABasiliskRegular",
+      "tuCost": 9,
+      "useLimit": 0,
+      "spiritGain": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "EnemyBuffABasiliskRegular",
+      "class": "Ability",
+      "config": "EnemyBuffABasiliskRegular",
+      "tuCost": 0,
+      "useLimit": 5,
+      "spiritCost": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackAManchesterRegular",
+      "class": "Ability",
+      "abilityScalor": 3,
+      "conditionalAbilityScalors": [
+        7
+      ],
+      "config": "SingleAttackAManchesterRegular",
+      "tuCost": 100,
+      "useLimit": 0,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllyAndEnemyBuffAManchesterRegular",
+      "class": "Ability",
+      "config": "AllyAndEnemyBuffAManchesterRegular",
+      "tuCost": 1,
+      "useLimit": 10,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SelfBuffAManchesterRegular",
+      "class": "Ability",
+      "config": "SelfBuffAManchesterRegular",
+      "tuCost": 50,
+      "useLimit": 3,
+      "spiritGain": 0,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllAttackAManchesterRegular",
+      "class": "Ability",
+      "abilityScalor": 4,
+      "conditionalAbilityScalors": [
+        9
+      ],
+      "config": "AllAttackAManchesterRegular",
+      "tuCost": 100,
+      "useLimit": 0,
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "DoubleAttackALuBuDarkBoss",
+      "class": "Ability",
+      "abilityScalor": 3,
+      "conditionalAbilityScalors": [
+        5,
+        5,
+        7
+      ],
+      "config": "DoubleAttackALuBuDarkBoss",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritGain": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "EnemyBuffALuBuDarkBoss",
+      "class": "Ability",
+      "config": "EnemyBuffALuBuDarkBoss",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritCost": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "RandomEnemyBuffALuBuDarkBoss",
+      "class": "Ability",
+      "config": "RandomEnemyBuffALuBuDarkBoss",
+      "tuCost": 1,
+      "useLimit": 5,
+      "spiritGain": 0,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackALuBuDarkBoss",
+      "class": "Ability",
+      "abilityScalor": -2,
+      "conditionalAbilityScalors": [
+        11
+      ],
+      "config": "SingleAttackALuBuDarkBoss",
+      "tuCost": 50,
+      "useLimit": 3,
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackAWhiteSnakeGirlDarkBoss",
+      "class": "Ability",
+      "abilityScalor": 1.5,
+      "conditionalAbilityScalors": [
+        4,
+        6.5,
+        9,
+        11.5,
+        14
+      ],
+      "config": "SingleAttackAWhiteSnakeGirlDarkBoss",
+      "tuCost": 75,
+      "useLimit": 0,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "AllyBuffAWhiteSnakeGirlDarkBoss",
+      "class": "Ability",
+      "config": "AllyBuffAWhiteSnakeGirlDarkBoss",
+      "tuCost": 10,
+      "useLimit": 0,
+      "spiritGain": 0,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "DoubleAttackAWhiteSnakeGirlDarkBoss",
+      "class": "Ability",
+      "abilityScalor": 3,
+      "conditionalAbilityScalors": [
+        7
+      ],
+      "config": "DoubleAttackAWhiteSnakeGirlDarkBoss",
+      "tuCost": 30,
+      "useLimit": 0,
+      "spiritGain": 0,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "RandomEnemyBuffAWhiteSnakeGirlDarkBoss",
+      "class": "Ability",
+      "config": "RandomEnemyBuffAWhiteSnakeGirlDarkBoss",
+      "tuCost": 1,
+      "useLimit": 1,
+      "spiritCost": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackAXiaoLiRegularBoss",
+      "class": "Ability",
+      "abilityScalor": 3,
+      "conditionalAbilityScalors": [
+        5,
+        7,
+        9
+      ],
+      "config": "SingleAttackAXiaoLiRegularBoss",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritGain": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "DoubleAttackAXiaoLiRegularBoss",
+      "class": "Ability",
+      "abilityScalor": 4,
+      "conditionalAbilityScalors": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "config": "DoubleAttackAXiaoLiRegularBoss",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritCost": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SelfBuffAXiaoLiRegularBoss",
+      "class": "Ability",
+      "config": "SelfBuffAXiaoLiRegularBoss",
+      "tuCost": 1,
+      "useLimit": 0,
+      "spiritGain": 2,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SpecialAttackAXiaoLiRegularBoss",
+      "class": "Ability",
+      "abilityScalor": 9,
+      "config": "SpecialAttackAXiaoLiRegularBoss",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritCost": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "DoubleAttackALuBuDark",
+      "class": "Ability",
+      "abilityScalor": 3,
+      "conditionalAbilityScalors": [
+        5,
+        5,
+        7
+      ],
+      "config": "DoubleAttackALuBuDark",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritGain": 3,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "EnemyBuffALuBuDark",
+      "class": "Ability",
+      "config": "EnemyBuffALuBuDark",
+      "tuCost": 50,
+      "useLimit": 0,
+      "spiritCost": 1,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "RandomEnemyBuffALuBuDark",
+      "class": "Ability",
+      "config": "RandomEnemyBuffALuBuDark",
+      "tuCost": 1,
+      "useLimit": 5,
+      "spiritGain": 0,
+      "blockTargetManipulation": 0,
+      "showConfirmation": 0
+    },
+    {
+      "name": "SingleAttackALuBuDark",
+      "class": "Ability",
+      "abilityScalor": -2,
+      "conditionalAbilityScalors": [
+        11
+      ],
+      "config": "SingleAttackALuBuDark",
+      "tuCost": 50,
+      "useLimit": 3,
       "spiritCost": 3,
       "blockTargetManipulation": 0,
       "showConfirmation": 0

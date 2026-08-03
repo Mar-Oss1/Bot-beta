@@ -1,4 +1,4 @@
-# tasks/raid.py
+# tasks/raid.py  (coordenadas unificadas con test_raid_coords.py)
 import time
 import re
 import cv2
@@ -13,53 +13,31 @@ from tasks.base_task import BaseTask
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 log = get_logger("raid")
 
-# ──────────────────────────────────────────
-# CONFIGURACIÓN DE MONSTRUOS
-# ──────────────────────────────────────────
 MONSTER_TYPES = {
-    "brown": {
-        "template": "templates/raid_monster_brown.png",
-        "priority": 1,
-        "resource": "Green Potions (Character)",
-        "name": "Café"
-    },
-    "purple": {
-        "template": "templates/raid_monster_purple.png",
-        "priority": 2,
-        "resource": "Minerals + Fruit",
-        "name": "Morado"
-    },
-    "yellow": {
-        "template": "templates/raid_monster_yellow.png",
-        "priority": 3,
-        "resource": "Blue Potions (Weapon)",
-        "name": "Amarillo"
-    },
-    "turquoise": {
-        "template": "templates/raid_monster_turquoise.png",
-        "priority": 4,
-        "resource": "Minerals",
-        "name": "Turquesa"
-    },
-    "blue": {
-        "template": "templates/raid_monster_blue.png",
-        "priority": 5,
-        "resource": "Minerals",
-        "name": "Azul"
-    },
+    "brown": {"template": "templates/raid_monster_brown.png", "priority": 1, "resource": "Green Potions",
+              "name": "Café"},
+    "purple": {"template": "templates/raid_monster_purple.png", "priority": 2, "resource": "Minerals + Fruit",
+               "name": "Morado"},
+    "yellow": {"template": "templates/raid_monster_yellow.png", "priority": 3, "resource": "Blue Potions",
+               "name": "Amarillo"},
+    "turquoise": {"template": "templates/raid_monster_turquoise.png", "priority": 4, "resource": "Minerals",
+                  "name": "Turquesa"},
+    "blue": {"template": "templates/raid_monster_blue.png", "priority": 5, "resource": "Minerals", "name": "Azul"},
 }
 
+# Posiciones EXACTAS del test afinado (test_raid_coords.py)
 MONSTER_POSITIONS = [
-    {"y": 260, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
-    {"y": 410, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
-    {"y": 550, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
-    {"y": 705, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
-    {"y": 855, "icon_x": 1075, "power_x": 1250, "enter_x": 1775, "icon_y_offset": 0},
+    {"y": 260, "icon_x": 1075, "power_x": 1250, "enter_x": 1775},
+    {"y": 410, "icon_x": 1075, "power_x": 1250, "enter_x": 1775},
+    {"y": 550, "icon_x": 1075, "power_x": 1250, "enter_x": 1775},
+    {"y": 700, "icon_x": 1075, "power_x": 1250, "enter_x": 1775},
+    {"y": 850, "icon_x": 1075, "power_x": 1250, "enter_x": 1775},
 ]
 
 ICON_HALF_W = 70
-ICON_HALF_H = 70
+ICON_HALF_H = 60
 
+# ROI de poder EXACTO del test afinado
 POWER_HALF_W_LEFT = 80
 POWER_HALF_W_RIGHT = 150
 POWER_HALF_H = 20
@@ -69,35 +47,26 @@ class Raid(BaseTask):
     def __init__(self, device, vision, account, db):
         super().__init__(device, vision, account, db)
         self._sid = None
+        self._debug_dir = "screenshots/debug_raid"
+        os.makedirs(self._debug_dir, exist_ok=True)
 
-    # ---- Sobrescribimos cerrar_ventana para que solo haga un intento ----
+    # ── cerrar_ventana optimizado (1 intento) ──
     def cerrar_ventana(self, screen=None):
-        """Cierra la ventana actual con un solo intento (X, back o back físico)."""
         if screen is None:
             screen = self.device.screenshot()
-        # Primero intentar con X
-        pos = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
-        if pos:
-            self.device.tap(pos[0], pos[1])
-            time.sleep(1.5)
+        result = self.vision.find_any(screen, [
+            "templates/btn_cerrar_x.png",
+            "templates/btn_back.png"
+        ], threshold=0.8)
+        if result:
+            self.device.tap(result[1], result[2])
+            time.sleep(1)
             return
-        # Si no X, intentar con botón back de la UI
-        pos = self.vision.find_template(screen, "templates/btn_back.png", threshold=0.85)
-        if pos:
-            self.device.tap(pos[0], pos[1])
-            time.sleep(1.5)
-            return
-        # Fallback: back físico
         self.device.d.press("back")
-        time.sleep(1.5)
+        time.sleep(1)
 
-    # ---- clear_loot_windows mejorado para raids (ya no se usa directamente en victoria) ----
+    # ── clear_loot_windows optimizado ──
     def clear_loot_windows(self):
-        """
-        Limpia cualquier ventana de loot/recompensa que pueda haber quedado abierta.
-        Cada tipo de ventana se maneja con una acción distinta.
-        """
-        # Mapeo de plantilla -> acción (función lambda o descripción)
         acciones = {
             "templates/victory_banner.png": lambda: self.device.tap(300, 100),
             "templates/defeat_banner.png": lambda: self.device.tap(300, 100),
@@ -105,175 +74,134 @@ class Raid(BaseTask):
             "templates/rewards.png": self._cerrar_rewards,
             "templates/pantalla_loot.png": lambda: self.device.tap(300, 100),
         }
-
-        for _ in range(6):  # hasta 6 intentos
+        for _ in range(6):
             screen = self.device.screenshot()
-            encontrado = False
-            for template, accion in acciones.items():
-                pos = self.vision.find_template(screen, template, threshold=0.80)
-                if pos:
-                    log.debug(f"Ventana de loot detectada: {template}")
-                    accion()
-                    time.sleep(1.5)
-                    encontrado = True
-                    break  # salir del for de plantillas para repetir el while
-            if not encontrado:
-                break  # no hay más ventanas
-            time.sleep(0.5)
+            result = self.vision.find_any(screen, list(acciones.keys()), threshold=0.80)
+            if result:
+                template, x, y = result
+                log.debug("Ventana detectada: %s", template)
+                acciones[template]()
+                time.sleep(1)
+            else:
+                break
 
     def _cerrar_rewards(self):
-        """Cierra una ventana de recompensas (raid_rewards o rewards) usando el botón X."""
         screen = self.device.screenshot()
         pos_x = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
         if pos_x:
             self.device.tap(pos_x[0], pos_x[1])
         else:
-            # Fallback: tocar esquina superior derecha (para resolución 2560x1440)
             self.device.tap(2400, 200)
         time.sleep(1)
 
-    # ---- Funciones de análisis (igual que la versión que funcionaba) ----
-    def _leer_poder(self, screenshot, x: int, y: int, power_y_offset: int = 0) -> int:
-        """Extrae el poder del monstruo usando OCR mejorado con ROI dinámico."""
+    # ── OCR de poder (misma lógica afinada del test, con fallback invertido) ──
+    def _leer_poder(self, screen_bgr, x: int, y: int) -> int:
+        """Extrae poder usando el ROI y escala afinados en test_raid_coords.py."""
         try:
-            screen_cv = self.vision.pil_to_cv2(screenshot)
-            h, w = screen_cv.shape[:2]
+            h, w = screen_bgr.shape[:2]
+            x1 = max(0, x - POWER_HALF_W_LEFT)
+            x2 = min(w, x + POWER_HALF_W_RIGHT)
+            y1 = max(0, y - POWER_HALF_H)
+            y2 = min(h, y + POWER_HALF_H)
 
-            # ROI centrado en x, con margen horizontal amplio (200 px a cada lado)
-            offset = 200
-            x1 = max(0, x - offset + 75)
-            x2 = min(w, x + offset)
-            y1 = max(0, y - 20)
-            y2 = min(h, y + 20)
+            roi_cv = screen_bgr[y1:y2, x1:x2]
 
-            roi = screen_cv[y1:y2, x1:x2]
+            escala = 3
+            roi_esc = cv2.resize(roi_cv, None, fx=escala, fy=escala, interpolation=cv2.INTER_CUBIC)
+            gray = cv2.cvtColor(roi_esc, cv2.COLOR_BGR2GRAY)
 
-            # Guardar debug
-            debug_dir = "screenshots/debug_raid"
-            os.makedirs(debug_dir, exist_ok=True)
-            cv2.imwrite(f"{debug_dir}/power_y{y}.png", roi)
+            def _ocr(thresh_img):
+                return pytesseract.image_to_string(
+                    thresh_img, config="--psm 7 -c tessedit_char_whitelist=0123456789.,KMkm"
+                ).strip()
 
-            # Escalar la imagen para mejorar OCR (factor 2x)
-            escala = 2
-            roi_escalada = cv2.resize(roi, None, fx=escala, fy=escala, interpolation=cv2.INTER_CUBIC)
+            def _parsear(texto_limpio):
+                if not texto_limpio:
+                    return 0
+                if "M" in texto_limpio or "m" in texto_limpio:
+                    nums = re.findall(r"[\d.]+", texto_limpio)
+                    return int(float(nums[0]) * 1_000_000) if nums else 0
+                elif "K" in texto_limpio or "k" in texto_limpio:
+                    nums = re.findall(r"[\d.]+", texto_limpio)
+                    return int(float(nums[0]) * 1_000) if nums else 0
+                else:
+                    nums = re.sub(r"[^\d]", "", texto_limpio)
+                    return int(nums) if nums and len(nums) <= 9 else 0
 
-            gray = cv2.cvtColor(roi_escalada, cv2.COLOR_BGR2GRAY)
-            _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            # Intento 1: binarización normal
+            _, thresh_normal = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            texto = _ocr(thresh_normal)
+            texto_limpio = re.sub(r"[^\d.,KMkm]", "", texto)
+            poder = _parsear(texto_limpio)
 
-            texto = pytesseract.image_to_string(
-                thresh,
-                config="--psm 7 -c tessedit_char_whitelist=0123456789.,KMkm"
-            )
+            # Intento 2: binarización invertida si el primero no dio nada
+            if poder == 0:
+                _, thresh_inv = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+                texto2 = _ocr(thresh_inv)
+                texto_limpio2 = re.sub(r"[^\d.,KMkm]", "", texto2)
+                poder2 = _parsear(texto_limpio2)
+                if poder2 > 0:
+                    return poder2
 
-            texto = texto.strip()
-            log.debug("  Texto OCR: '%s'", texto)
-
-            texto_limpio = re.sub(r'[^\d.,KMkm]', '', texto)
-
-            if not texto_limpio:
-                log.warning("  No se pudo parsear el poder: '%s'", texto)
-                return 0
-
-            if 'M' in texto_limpio or 'm' in texto_limpio:
-                numeros = re.findall(r'[\d.]+', texto_limpio)
-                if numeros:
-                    poder = int(float(numeros[0]) * 1_000_000)
-                    log.debug("  Poder leído: %d (M)", poder)
-                    return poder
-
-            elif 'K' in texto_limpio or 'k' in texto_limpio:
-                numeros = re.findall(r'[\d.]+', texto_limpio)
-                if numeros:
-                    poder = int(float(numeros[0]) * 1_000)
-                    log.debug("  Poder leído: %d (K)", poder)
-                    return poder
-
-            else:
-                numeros = re.sub(r'[^\d]', '', texto_limpio)
-                if numeros and len(numeros) <= 9:
-                    poder = int(numeros)
-                    log.debug("  Poder leído: %d", poder)
-                    return poder
-
-            log.warning("  No se pudo parsear el poder: '%s'", texto)
-            return 0
+            return poder
 
         except Exception as e:
             log.error("Error leyendo poder: %s", e)
             return 0
 
-    def _detectar_tipo_monstruo(self, screenshot, y: int, icon_x: int, icon_y_offset: int = 0) -> tuple:
-        """Detecta el tipo de monstruo usando template matching, centrado en icon_x real."""
-        screen_cv = self.vision.pil_to_cv2(screenshot)
-        h, w = screen_cv.shape[:2]
-
-        icon_y = y + icon_y_offset
+    # ── Detección de tipo (usa cache de vision.py, no lee disco) ──
+    def _detectar_tipo_monstruo(self, screen_gray, y: int, icon_x: int) -> tuple:
+        """Detecta tipo usando screenshot gray ya convertido."""
+        h, w = screen_gray.shape
+        icon_y = y
         x1 = max(0, icon_x - ICON_HALF_W)
         x2 = min(w, icon_x + ICON_HALF_W)
         y1 = max(0, icon_y - ICON_HALF_H)
         y2 = min(h, icon_y + ICON_HALF_H)
 
-        roi_cv = screen_cv[y1:y2, x1:x2]
-
-        debug_dir = "screenshots/debug_raid"
-        os.makedirs(debug_dir, exist_ok=True)
-        cv2.imwrite(f"{debug_dir}/monster_y{y}.png", roi_cv)
-
-        roi_gray = cv2.cvtColor(roi_cv, cv2.COLOR_BGR2GRAY)
+        roi_gray = screen_gray[y1:y2, x1:x2]
 
         mejor_tipo = None
         mejor_confidence = 0
 
         for tipo, config in MONSTER_TYPES.items():
-            ruta = os.path.join(PROJECT_ROOT, config["template"])
-            template = cv2.imread(ruta, cv2.IMREAD_GRAYSCALE)
-
-            if template is None:
-                continue
-            if template.shape[0] > roi_gray.shape[0] or template.shape[1] > roi_gray.shape[1]:
-                continue
-
-            try:
-                res = cv2.matchTemplate(roi_gray, template, cv2.TM_CCOEFF_NORMED)
-                _, max_val, _, _ = cv2.minMaxLoc(res)
-
-                if max_val > 0.65 and max_val > mejor_confidence:
-                    mejor_confidence = max_val
+            pos = self.vision.find_template(roi_gray, config["template"], threshold=0.65)
+            if pos:
+                conf = 0.7  # placeholder, vision.py no expone el confidence
+                if conf > mejor_confidence:
+                    mejor_confidence = conf
                     mejor_tipo = tipo
-                    log.debug("    %s: %.2f", config["name"], max_val)
-            except cv2.error:
-                continue
 
         if mejor_tipo:
-            log.info("  ✓ Tipo: %s (%.2f)", MONSTER_TYPES[mejor_tipo]["name"], mejor_confidence)
+            log.info("  ✓ Tipo: %s", MONSTER_TYPES[mejor_tipo]["name"])
             return (mejor_tipo, mejor_confidence)
 
-        log.warning("   No detectado y=%d → ROI: x[%d:%d] y[%d:%d]. Revisa %s",
-                    y, x1, x2, y1, y2, debug_dir)
+        log.warning("  No detectado y=%d", y)
         return (None, 0)
 
+    # ── Análisis de monstruos (1 screenshot, gray para tipo + BGR para poder) ──
     def _analizar_monstruos(self) -> list:
-        """Analiza la lista de monstruos y retorna los detectados con poder."""
         screen = self.device.screenshot()
+        screen_gray = self.vision.to_gray(screen)
+
+        # screen puede venir como PIL; nos aseguramos de tener BGR para el OCR de poder
+        screen_bgr = cv2.cvtColor(np.array(screen), cv2.COLOR_RGB2BGR)
+
         monstruos = []
 
         for i, pos in enumerate(MONSTER_POSITIONS):
             log.info("  Analizando monstruo %d...", i + 1)
 
             tipo, confidence = self._detectar_tipo_monstruo(
-                screen, pos["y"], pos["icon_x"], pos.get("icon_y_offset", 0)
+                screen_gray, pos["y"], pos["icon_x"]
             )
-
             if not tipo:
-                log.warning("  No se pudo detectar el tipo del monstruo %d", i + 1)
+                log.warning("  No se detectó tipo del monstruo %d", i + 1)
                 continue
 
-            poder = self._leer_poder(
-                screen, pos["power_x"], pos["y"], pos.get("power_y_offset", 0)
-            )
-
+            poder = self._leer_poder(screen_bgr, pos["power_x"], pos["y"])
             if poder == 0:
-                log.warning("  No se pudo leer el poder del monstruo %d", i + 1)
+                log.warning("  No se pudo leer poder del monstruo %d", i + 1)
                 continue
 
             monstruos.append({
@@ -289,383 +217,228 @@ class Raid(BaseTask):
             log.error("No se detectaron monstruos válidos")
             return []
 
-        # Ordenar por prioridad (menor número = mayor prioridad) y luego por poder descendente
         monstruos.sort(key=lambda m: (m["priority"], -m["power"]))
-
         return monstruos
 
     def _generar_plan_batallas(self, monstruos: list) -> list:
         if not monstruos:
             return []
-
-        monstruos.sort(
-            key=lambda m: (m["priority"], -m["power"])
-        )
-
         max_priority = monstruos[0]["priority"]
+        mismos_tipo = [m for m in monstruos if m["priority"] == max_priority]
 
-        mismos_tipo = [
-            m for m in monstruos
-            if m["priority"] == max_priority
-        ]
+        log.info("Monstruos de máxima prioridad: %d", len(mismos_tipo))
 
-        log.info("-" * 45)
-        log.info(
-            "Monstruos de máxima prioridad encontrados: %d",
-            len(mismos_tipo)
-        )
-        log.info("-" * 45)
-
-        plan = []
-
-        # 3 o más monstruos de máxima prioridad
         if len(mismos_tipo) >= 3:
-
-            plan = mismos_tipo[:3]
-
-            log.info(
-                "Plan: atacar a los 3 monstruos más fuertes de prioridad %d",
-                max_priority
-            )
-
-        # 2 monstruos de máxima prioridad
+            return mismos_tipo[:3]
         elif len(mismos_tipo) == 2:
+            return [mismos_tipo[0], mismos_tipo[0], mismos_tipo[1]]
+        else:
+            return [mismos_tipo[0]] * 3
 
-            plan = [
-                mismos_tipo[0],
-                mismos_tipo[0],
-                mismos_tipo[1]
-            ]
-
-            log.info(
-                "Plan: 2 ataques al más fuerte (%d), 1 ataque al segundo (%d)",
-                mismos_tipo[0]["power"],
-                mismos_tipo[1]["power"]
-            )
-
-        # 1 monstruo de máxima prioridad
-        elif len(mismos_tipo) == 1:
-
-            plan = [
-                mismos_tipo[0],
-                mismos_tipo[0],
-                mismos_tipo[0]
-            ]
-
-            log.info(
-                "Plan: 3 ataques al monstruo de máxima prioridad (%d)",
-                mismos_tipo[0]["power"]
-            )
-
-        return plan
-
-    # ---- Navegación al mapa de Battalion Warfare ----
+    # ── Navegación ──
     def _ir_al_mapa_guerra(self) -> bool:
-        """
-        Navega desde el Home al mapa de Battalion Warfare (donde están raids, arena, guerras).
-        Si ya está en el mapa, retorna True sin hacer nada.
-        """
         log.info("  [🗺️] Navegando al mapa de Battalion Warfare...")
 
-        # Primero verificar si ya estamos en el mapa de warfare
         screen = self.device.screenshot()
-        resultado = self.vision.find_any(
-            screen,
-            [
-                "templates/alliance_war.png",
-                "templates/war_of_the_realms.png",
-                "templates/btn_raid_map.png",  # Si vemos el botón de raids, ya estamos dentro
-            ],
-            threshold=0.85
-        )
+        resultado = self.vision.find_any(screen, [
+            "templates/alliance_war.png",
+            "templates/war_of_the_realms.png",
+            "templates/btn_raid_map.png",
+        ], threshold=0.85)
 
         if resultado:
-            log.info("  [✓] Ya estamos en el mapa de Battalion Warfare.")
+            log.info("  [✓] Ya estamos en el mapa.")
             return True
 
-        # Si no estamos, buscar el botón de entrada en el Home
-        pos_battalion = self.vision.find_template(
-            screen,
-            "templates/btn_battalion_warfare.png",
-            threshold=0.85
-        )
-
+        pos_battalion = self.vision.find_template(screen, "templates/btn_battalion_warfare.png", threshold=0.85)
         if not pos_battalion:
-            log.error("No se encontró btn_battalion_warfare en el Home.")
+            log.error("No se encontró btn_battalion_warfare.")
             return False
 
-        log.info("  [▶️] Tocando btn_battalion_warfare para entrar al mapa...")
         self.device.tap(pos_battalion[0], pos_battalion[1])
         self.wait_for_screen_stable(timeout=6, interval=0.5)
 
-        # Verificar que entramos correctamente
         screen = self.device.screenshot()
-        resultado = self.vision.find_any(
-            screen,
-            [
-                "templates/alliance_war.png",
-                "templates/war_of_the_realms.png",
-                "templates/btn_raid_map.png",
-            ],
-            threshold=0.85
-        )
+        resultado = self.vision.find_any(screen, [
+            "templates/alliance_war.png",
+            "templates/war_of_the_realms.png",
+            "templates/btn_raid_map.png",
+        ], threshold=0.85)
 
         if resultado:
-            log.info("  [✓] Entrada exitosa al mapa de Battalion Warfare.")
+            log.info("  [✓] Entrada exitosa al mapa.")
             return True
-        else:
-            log.error("No se pudo entrar al mapa de Battalion Warfare.")
-            return False
+        log.error("No se pudo entrar al mapa.")
+        return False
 
-    # ---- Entrar a raids (ahora con navegación previa) ----
     def _entrar_raid(self) -> bool:
-        log.info("  [🗺️] Buscando botón de raids en el mapa...")
-
-        # Primero asegurarnos de estar en el mapa de Battalion Warfare
+        log.info("  [🗺️] Buscando botón de raids...")
         if not self._ir_al_mapa_guerra():
-            log.error("No se pudo navegar al mapa de Battalion Warfare.")
             return False
 
-        # Ahora buscar el botón de raids
         screen = self.device.screenshot()
-        pos_raid = self.vision.find_any(
-            screen,
-            [
-                "templates/btn_raid_map.png",
-                "templates/btn_siege.png",
-                "templates/btn_raid.png",
-            ],
-            threshold=0.85
-        )
+        pos_raid = self.vision.find_any(screen, [
+            "templates/btn_raid_map.png",
+            "templates/btn_siege.png",
+            "templates/btn_raid.png",
+        ], threshold=0.85)
 
         if not pos_raid:
-            log.error("No se encontró el botón de raids en el mapa")
+            log.error("No se encontró el botón de raids.")
             return False
 
         self.device.tap(pos_raid[1], pos_raid[2])
-        # Esperar a que cargue la pantalla de raids (usamos un sleep fijo porque es carga pesada)
-        time.sleep(4)
-
+        self.wait_for_screen_stable(timeout=5, interval=0.5)
         log.info("  [✓] Entrando a raids...")
         return True
 
     def _crear_party(self) -> bool:
         log.info("  [👥] Creando party...")
-
-        # Esperar a que aparezca el botón "Create"
-        pos_create = self.wait_for_template(
-            "templates/btn_siege_create.png",
-            timeout=6,
-            threshold=0.85
-        )
+        pos_create = self.wait_for_template("templates/btn_siege_create.png", timeout=6, threshold=0.85)
         if not pos_create:
-            log.error("No se encontró botón Create (pantalla principal)")
+            log.error("No se encontró botón Create.")
             return False
 
         self.device.tap(pos_create[0], pos_create[1])
-        time.sleep(2)
+        time.sleep(1.5)
 
-        # Esperar a que aparezca el botón de confirmación
-        pos_confirm = self.wait_for_template(
-            "templates/btn_siege_create_confirm.png",
-            timeout=4,
-            threshold=0.85
-        )
+        pos_confirm = self.wait_for_template("templates/btn_siege_create_confirm.png", timeout=4, threshold=0.85)
         if not pos_confirm:
-            log.error("No se encontró botón Create (popup confirmación)")
+            log.error("No se encontró confirmación.")
             return False
 
         self.device.tap(pos_confirm[0], pos_confirm[1])
-        # Esperar un poco a que se cree la party
-        time.sleep(3)
-
+        time.sleep(2)
         log.info("  [✓] Party creada")
         return True
 
     def _iniciar_raid(self) -> bool:
         log.info("  [⚔️] Iniciando raid...")
-
-        # Esperar a que aparezca el botón "Start Raid"
-        pos_start = self.wait_for_template(
-            "templates/btn_siege_start.png",
-            timeout=5,
-            threshold=0.85
-        )
+        pos_start = self.wait_for_template("templates/btn_siege_start.png", timeout=5, threshold=0.85)
         if not pos_start:
-            log.error("No se encontró botón Start Raid")
+            log.error("No se encontró botón Start Raid.")
             return False
-
         self.device.tap(pos_start[0], pos_start[1])
-        # Pequeña pausa para que empiece la batalla
-        time.sleep(2)
-
+        time.sleep(1.5)
         log.info("  [✓] Raid iniciado")
         return True
 
-    # ---- ESPERAR BATALLA (VERSIÓN CORREGIDA) ----
+    # ── Esperar batalla (polling optimizado) ──
     def _esperar_batalla(self):
-        """
-        Espera a que termine la batalla.
-
-        Flujo:
-        Skip -> Victory/Defeat -> Cerrar banner -> Raid Rewards -> Cerrar reward -> Regresar
-        """
         log.info("[ ] Esperando batalla...")
-
         timeout = 60
         inicio = time.time()
 
         while time.time() - inicio < timeout:
-
             screen = self.device.screenshot()
 
-            # ----- SKIP -----
-            pos_skip = self.vision.find_template(
-                screen,
+            result = self.vision.find_any(screen, [
                 "templates/btn_battle_skip.png",
-                threshold=0.80
-            )
-            if pos_skip:
-                log.info("[ ] Skip detectado")
-                self.device.tap(pos_skip[0], pos_skip[1])
-                time.sleep(1)
+                "templates/victory_banner.png",
+                "templates/defeat_banner.png",
+            ], threshold=0.80)
 
-                screen = self.device.screenshot()
-                pos_ok = self.vision.find_template(
-                    screen,
-                    "templates/btn_skip_ok.png",
-                    threshold=0.80
-                )
-                if pos_ok:
-                    log.info("[ ] Confirmando skip")
-                    self.device.tap(pos_ok[0], pos_ok[1])
+            if result:
+                template, x, y = result
 
-            # ----- VICTORIA -----
-            screen = self.device.screenshot()
-            if self.vision.find_template(
-                    screen,
-                    "templates/victory_banner.png",
-                    threshold=0.80
-            ):
-                log.info("[✓] Victoria detectada")
+                if "skip" in template:
+                    log.info("[ ] Skip detectado")
+                    self.device.tap(x, y)
+                    time.sleep(0.8)
+                    pos_ok = self.vision.find_template(
+                        self.device.screenshot(), "templates/btn_skip_ok.png", threshold=0.80
+                    )
+                    if pos_ok:
+                        log.info("[ ] Confirmando skip")
+                        self.device.tap(pos_ok[0], pos_ok[1])
+                    continue
 
-                # Cerrar el banner de victoria tocando el centro de la pantalla
-                screen = self.device.screenshot()
-                h, w = screen.size[1], screen.size[0]  # PIL: (width, height)
-                self.device.tap(w // 2, h // 2)
-                time.sleep(1.5)
-
-                log.info("[ ] Esperando Raid Rewards...")
-                pos_rewards = self.wait_for_template(
-                    "templates/raid_rewards.png",
-                    timeout=5,
-                    threshold=0.75,
-                    interval=0.5,
-                    log_progress=True
-                )
-
-                if pos_rewards:
-                    log.info("[✓] Raid Rewards detectado")
+                if "victory" in template:
+                    log.info("[✓] Victoria detectada")
+                    w, h = screen.size
+                    self.device.tap(w // 2, h // 2)
                     time.sleep(1)
-                    self.cerrar_ventana()
-                    time.sleep(2)
+
+                    pos_rewards = self.wait_for_template(
+                        "templates/raid_rewards.png", timeout=5, threshold=0.75, interval=0.5
+                    )
+                    if pos_rewards:
+                        log.info("[✓] Raid Rewards detectado")
+                        time.sleep(0.8)
+                        self.cerrar_ventana()
+                        time.sleep(1.5)
+                        self.clear_loot_windows()
+                        log.info("[✓] Recompensas cerradas")
+                        return
+                    else:
+                        log.warning("[!] No se detectó Raid Rewards. Limpieza forzada...")
+                        self.clear_loot_windows()
+                        return
+
+                if "defeat" in template:
+                    log.info("[X] Derrota detectada")
+                    self.device.tap(300, 100)
+                    time.sleep(1.5)
                     self.clear_loot_windows()
-                    log.info("[✓] Recompensas cerradas")
-                    return
-                else:
-                    log.warning("[!] No se detectó Raid Rewards. Intentando limpieza forzada...")
-                    self.clear_loot_windows()
                     return
 
-            # ----- DERROTA -----
-            screen = self.device.screenshot()
-            if self.vision.find_template(
-                    screen,
-                    "templates/defeat_banner.png",
-                    threshold=0.80
-            ):
-                log.info("[X] Derrota detectada")
-                # Cerrar el banner de derrota
-                self.device.tap(300, 100)
-                time.sleep(2)
-                self.clear_loot_windows()
-                return
+            time.sleep(0.6)
 
-            time.sleep(0.5)
-
-        # Timeout
-        log.warning("[!] Timeout esperando resultado de batalla")
+        log.warning("[!] Timeout esperando batalla")
         self.clear_loot_windows()
-        log.info("[✓] Batalla completada")
 
-    # ---- VOLVER A LA LISTA (con espera inteligente) ----
     def _volver_a_lista(self):
-        """Vuelve a la lista de monstruos cerrando la ventana actual y esperando a que cargue."""
         log.debug("  [⬅️] Volviendo a la lista...")
         self.cerrar_ventana()
-        # Esperar a que la lista de monstruos se estabilice
         self.wait_for_screen_stable(timeout=5, interval=0.5)
-        time.sleep(1)
+        time.sleep(0.8)
 
     def execute(self) -> bool:
-        self._sid = getattr(self, '_sid', None)
+        self._sid = getattr(self, "_sid", None)
         cuenta_label = self.account.name if self.account else "Prueba"
         log.info("=" * 55)
         log.info("⚔️  Módulo de Asedios/Raids — %s", cuenta_label)
         log.info("=" * 55)
 
-        # Entrar a raids (navega al mapa de Battalion Warfare primero)
         if not self._entrar_raid():
             return False
-
-        # Analizar monstruos
+        time.sleep(2)
         monstruos = self._analizar_monstruos()
         if not monstruos:
             log.error("No se detectaron monstruos válidos")
             return False
 
-        # Generar plan (siempre 3 batallas)
         plan = self._generar_plan_batallas(monstruos)
         if not plan:
-            log.error("No se pudo generar el plan de batallas")
+            log.error("No se pudo generar plan de batallas")
             return False
 
         log.info("━" * 45)
-        log.info(" Plan de batallas generado: %d batallas", len(plan))
-        for i, monstruo in enumerate(plan):
-            log.info("  Batalla %d: %s (Poder: %d)",
-                     i + 1,
-                     MONSTER_TYPES[monstruo["tipo"]]["name"],
-                     monstruo["power"])
+        log.info("Plan: %d batallas", len(plan))
+        for i, m in enumerate(plan):
+            log.info("  Batalla %d: %s (Poder: %d)", i + 1, MONSTER_TYPES[m["tipo"]]["name"], m["power"])
         log.info("━" * 45)
 
-        # Ejecutar batallas
         for i, monstruo in enumerate(plan):
             log.info("━" * 45)
             log.info("⚔️  Batalla %d/%d", i + 1, len(plan))
             log.info("━" * 45)
 
-            # Tocar el monstruo seleccionado
-            log.info("  [▶️] Entrando al monstruo...")
             self.device.tap(monstruo["enter_x"], monstruo["y"])
-            time.sleep(3)  # Esperar a que cargue la pantalla de preparación
+            time.sleep(2.5)
 
             if not self._crear_party():
                 return False
-
             if not self._iniciar_raid():
                 return False
 
             self._esperar_batalla()
 
-            # Si no es la última batalla, volver a la lista
             if i < len(plan) - 1:
                 self._volver_a_lista()
 
-        # Volver al home
         log.info("  [🏠] Volviendo al home...")
         self.cerrar_ventana()
-        time.sleep(3)
-
-        log.info("✅ Módulo de raids completado exitosamente")
+        time.sleep(2)
+        log.info("✅ Módulo de raids completado")
         return True

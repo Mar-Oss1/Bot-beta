@@ -4,7 +4,7 @@
       "id": 1,
       "name": "Mcbeth/Beth",
       "serial": "B5DF7BWQLEYM",
-      "enabled": false,
+      "enabled": true,
       "priority": 1,
       "notes": "Multi-server",
       "servers": [
@@ -12,7 +12,8 @@
           "server_id": "SA-3"
         },
         {
-          "server_id": "SA-6"
+          "server_id": "SA-6",
+          "vip": true
         }
       ]
     },
@@ -20,7 +21,7 @@
       "id": 2,
       "name": "Mini Beth",
       "serial": "JD6C633CGJHT",
-      "enabled": false,
+      "enabled": true,
       "priority": 2,
       "notes": "",
       "servers": []
@@ -29,7 +30,7 @@
       "id": 3,
       "name": "BENKEI",
       "serial": "ggnk6ex67cme",
-      "enabled": false,
+      "enabled": true,
       "priority": 3,
       "notes": "",
       "servers": []
@@ -38,7 +39,7 @@
       "id": 4,
       "name": "Yukimura",
       "serial": "zy796k93rrwm",
-      "enabled": false,
+      "enabled": true,
       "priority": 4,
       "notes": "",
       "servers": []
@@ -47,7 +48,7 @@
       "id": 5,
       "name": "ASRA",
       "serial": "KTD2LRPHARZE",
-      "enabled": false,
+      "enabled": true,
       "priority": 5,
       "notes": "",
       "servers": []
@@ -59,7 +60,12 @@
       "enabled": true,
       "priority": 6,
       "notes": "",
-      "servers": []
+      "servers": [
+        {
+          "server_id": "SA-9",
+          "vip": true
+        }
+      ]
     },
     {
       "id": 7,
@@ -68,7 +74,12 @@
       "enabled": true,
       "priority": 7,
       "notes": "",
-      "servers": []
+      "servers": [
+        {
+          "server_id": "SA-9",
+          "vip": true
+        }
+      ]
     },
     {
       "id": 8,
@@ -77,7 +88,12 @@
       "enabled": true,
       "priority": 8,
       "notes": "",
-      "servers": []
+      "servers": [
+        {
+          "server_id": "SA-9",
+          "vip": true
+        }
+      ]
     },
     {
       "id": 9,

@@ -1,8 +1,10 @@
 # tasks/base_task.py
 import time
+import os
 from core.logger import get_logger
 
 log = get_logger("base_task")
+
 
 class BaseTask:
     def __init__(self, device, vision, account=None, db=None):
@@ -11,9 +13,8 @@ class BaseTask:
         self.account = account
         self.db = db
 
-    # ---- Métodos de espera inteligente (delegados a vision) ----
+    # ---- Métodos de espera (delegados a vision) ----
     def wait_for_template(self, template_path, timeout=10, threshold=None, interval=0.3, log_progress=False):
-        """Espera a que aparezca un template en pantalla."""
         return self.vision.wait_for_template(
             self.device.screenshot,
             template_path,
@@ -24,7 +25,6 @@ class BaseTask:
         )
 
     def wait_for_screen_stable(self, timeout=15, interval=0.8, stability_threshold=0.98, min_stable_checks=2):
-        """Espera a que la pantalla deje de cambiar (carga completa)."""
         return self.vision.wait_for_screen_stable(
             self.device.screenshot,
             timeout=timeout,
@@ -33,82 +33,92 @@ class BaseTask:
             min_stable_checks=min_stable_checks
         )
 
-    # ---- Funciones auxiliares comunes ----
+    def wait_for_disappearance(self, template_path, timeout=5, threshold=None, interval=0.3) -> bool:
+        """Espera a que un template desaparezca de la pantalla."""
+        threshold = threshold if threshold is not None else self.vision.threshold
+        inicio = time.time()
+        while time.time() - inicio < timeout:
+            screen = self.device.screenshot()
+            if self.vision.find_template(screen, template_path, threshold) is None:
+                return True
+            time.sleep(interval)
+        return False
+
+    # ---- Funciones auxiliares optimizadas ----
     def cerrar_ventana(self, screen=None):
-        """Intenta cerrar una ventana emergente usando X, back o botón físico."""
+        """Cierra ventana emergente con X, back o botón físico."""
         if screen is None:
             screen = self.device.screenshot()
 
-        pos = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
-        if pos:
-            log.debug("Cerrando con botón X")
-            self.device.tap(pos[0], pos[1])
-            time.sleep(2)
-            return
+        result = self.vision.find_any(screen, [
+            "templates/btn_cerrar_x.png",
+            "templates/btn_back.png"
+        ], threshold=0.8)
 
-        pos = self.vision.find_template(screen, "templates/btn_back.png", threshold=0.85)
-        if pos:
-            log.debug("Cerrando con btn_back.png")
-            self.device.tap(pos[0], pos[1])
-            time.sleep(2)
+        if result:
+            template, x, y = result
+            log.debug("Cerrando con %s", os.path.basename(template))
+            self.device.tap(x, y)
+            time.sleep(1)
             return
 
         log.debug("Sin botón de cierre. Usando back de Android.")
         self.device.d.press("back")
-        time.sleep(2)
+        time.sleep(1)
 
     def return_to_home(self):
-        """Vuelve a la pantalla principal del juego (Home)."""
-        screen = self.device.screenshot()
-        pos = self.vision.find_template(screen, "templates/btn_home_nav.png", threshold=0.85)
+        """Vuelve a la pantalla principal del juego."""
+        # Intento rápido: ¿ya estamos en home?
+        pos = self.vision.find_template(
+            self.device.screenshot(), "templates/btn_home_nav.png", threshold=0.85
+        )
         if pos:
             self.device.tap(pos[0], pos[1])
-            time.sleep(3)
-        else:
-            # Intentar con varias pulsaciones de back
-            for _ in range(4):
-                self.device.d.press("back")
-                time.sleep(1.5)
-                screen = self.device.screenshot()
-                pos = self.vision.find_template(screen, "templates/btn_home_nav.png", threshold=0.85)
-                if pos:
-                    self.device.tap(pos[0], pos[1])
-                    time.sleep(3)
-                    break
+            time.sleep(1.5)
+            self.limpiar_banners_home()
+            return
 
-        # Limpiar posibles banners que aparezcan en el home
+        # Fallback: back repetido con polling ligero
+        for _ in range(5):
+            self.device.d.press("back")
+            time.sleep(0.8)
+            screen = self.device.screenshot()
+            pos = self.vision.find_template(screen, "templates/btn_home_nav.png", threshold=0.85)
+            if pos:
+                self.device.tap(pos[0], pos[1])
+                time.sleep(1.5)
+                break
+
         self.limpiar_banners_home()
 
-    def limpiar_banners_home(self):
-        """Cierra popups y reclama botones que aparecen en el home."""
-        for _ in range(4):
+    def limpiar_banners_home(self, max_iter=6):
+        """Cierra popups y reclama botones del home."""
+        banner_templates = [
+            "templates/btn_claim.png",
+            "templates/btn_cerrar_x.png"
+        ]
+        for _ in range(max_iter):
             screen = self.device.screenshot()
-            # Buscar botón Claim o X
-            pos_claim = self.vision.find_template(screen, "templates/btn_claim.png", threshold=0.8)
-            if pos_claim:
-                log.debug("Reclamando banner...")
-                self.device.tap(pos_claim[0], pos_claim[1])
-                time.sleep(2)
+            result = self.vision.find_any(screen, banner_templates, threshold=0.8)
+
+            if result:
+                template, x, y = result
+                log.debug("Banner detectado: %s. Procesando...", os.path.basename(template))
+                self.device.tap(x, y)
+                # Esperar que desaparezca o timeout corto
+                time.sleep(1.5)
                 continue
 
-            pos_x = self.vision.find_template(screen, "templates/btn_cerrar_x.png", threshold=0.8)
-            if pos_x:
-                log.debug("Cerrando popup con X...")
-                self.device.tap(pos_x[0], pos_x[1])
-                time.sleep(2)
-                continue
-
-            # Si no hay nada, esperar un segundo y verificar de nuevo
-            time.sleep(1)
-            screen2 = self.device.screenshot()
-            if not (self.vision.find_template(screen2, "templates/btn_claim.png", 0.8) or
-                    self.vision.find_template(screen2, "templates/btn_cerrar_x.png", 0.8)):
+            # Doble verificación rápida para confirmar limpieza
+            time.sleep(0.5)
+            screen = self.device.screenshot()
+            if not self.vision.find_any(screen, banner_templates, threshold=0.8):
                 log.debug("Home limpio.")
                 break
 
-    def clear_loot_windows(self):
+    def clear_loot_windows(self, max_taps=6):
         """Cierra ventanas de loot, victoria, derrota, etc."""
-        templates = [
+        loot_templates = [
             "templates/pantalla_loot.png",
             "templates/level_up.png",
             "templates/rewards.png",
@@ -116,11 +126,14 @@ class BaseTask:
             "templates/defeat_banner.png",
             "templates/summon_chest_loot.png",
         ]
-        for _ in range(6):
+        for _ in range(max_taps):
             screen = self.device.screenshot()
-            if any(self.vision.find_template(screen, t, threshold=0.85) for t in templates):
+            found = self.vision.find_any(screen, loot_templates, threshold=0.85)
+
+            if found:
                 log.debug("Ventana de loot/victoria detectada. Cerrando...")
-                self.device.tap(300, 100)  # Toca en un punto genérico para cerrar
-                time.sleep(1.5)
+                self.device.tap(300, 100)
+                # Esperar que desaparezca en lugar de sleep fijo largo
+                time.sleep(1)
             else:
                 break
