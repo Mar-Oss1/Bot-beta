@@ -18,7 +18,8 @@ from tasks.event_farm import EventFarm
 from tasks.defense import Defense
 from tasks.raid import Raid
 from tasks.raid_auto import ejecutar_raids_para_todas
-from core.flow_helpers import intentar_login, procesar_servidor
+from tasks.event_sweep_auto import ejecutar_eventos_para_todas  # <--- NUEVO IMPORT
+from core.flow_helpers import intentar_login
 
 setup_logger()
 log = get_logger("main")
@@ -63,7 +64,6 @@ def _procesar_servidor(
 
     # Ejecutar DailyMissions (pasar account y db)
     misiones = DailyMissions(dev, vis, cuenta, db)
-    # Asignar _sid si es necesario
     misiones._server_id = None if server_id == "DEFAULT" else server_id
     exito = misiones.execute(server_id=server_id)
 
@@ -83,7 +83,6 @@ def ejecutar_flujo_completo(db: Database, dev: Device, vis: Vision):
     log.info("INICIANDO FLUJO COMPLETO DE TAREAS")
     log.info("=" * 60)
 
-    # Obtener cuentas pendientes (ordenadas por prioridad)
     cuentas_pendientes = db.get_pending_accounts()
     if not cuentas_pendientes:
         log.info("Todas las cuentas terminaron sus tareas hoy. ¡A descansar!")
@@ -98,20 +97,17 @@ def ejecutar_flujo_completo(db: Database, dev: Device, vis: Vision):
         log.info("PROCESANDO: %s (Prioridad %d)", cuenta.name, cuenta.priority)
         log.info("=" * 50)
 
-        # LOGIN
         if not intentar_login(cuenta, dev, vis):
             log.error("No se pudo entrar a %s tras 3 intentos.", cuenta.name)
             cuenta.mark_login_failed()
             db.save()
             continue
 
-        # SERVIDORES
         servidores = cuenta.servers if cuenta.servers else [{"server_id": "DEFAULT"}]
 
         for index, servidor in enumerate(servidores):
             server_id = servidor.get("server_id", "DEFAULT")
 
-            # Saltar si este servidor ya está completo
             if cuenta.is_task_done("daily_missions", None if server_id == "DEFAULT" else server_id):
                 log.info("Servidor %s ya completado hoy. Saltando.", server_id)
                 continue
@@ -126,7 +122,6 @@ def ejecutar_flujo_completo(db: Database, dev: Device, vis: Vision):
 
             log.info("Servidor %s completado exitosamente.", server_id)
 
-        # Después de procesar todos los servidores, guardar progreso
         db.save()
         log.info("Cuenta %s procesada completamente.", cuenta.name)
         time.sleep(2)
@@ -135,12 +130,16 @@ def ejecutar_flujo_completo(db: Database, dev: Device, vis: Vision):
     log.info("FLUJO COMPLETO FINALIZADO")
     log.info("=" * 60)
 
-    # Verificar horario de raids y ejecutar si corresponde
     if es_hora_raid():
         log.info("Es horario de raids. Ejecutando raids automáticos...")
         ejecutar_raids_para_todas(db, dev, vis)
     else:
         log.info("No es horario de raids. Saltando raids automáticos.")
+
+    # [OPCIONAL] Si en el futuro quieres que los eventos también corran solos en el flujo diario,
+    # puedes descomentar estas líneas:
+    # log.info("Ejecutando sweeps de eventos automáticos...")
+    # ejecutar_eventos_para_todas(db, dev, vis)
 
 
 # ======================================================
@@ -169,11 +168,12 @@ def menu_interactivo():
         print(" 4.  Cambio Servidor")
         print(" 5.  Rompehielos (Startup)")
         print(" 6.  Misiones Diarias (Modo Prueba - sin guardar estado)")
-        print(" 7.  Farneo Evento")
+        print(" 7.  Farneo Evento (Manual - 1 evento)")
         print(" 8.  Tiradas Premium")
         print(" 9.  Asedios/Raids (Todas las cuentas automático)")
         print("10.  Defensa War (Manual)")
-        print("11.  Salir")
+        print("11.  Sweep de Eventos (Todas las cuentas automático)")  # <--- NUEVA OPCIÓN
+        print("12.  Salir")                                            # <--- ACTUALIZADO (era 11)
         print("=" * 50)
 
         opcion = input("Selecciona una opción: ").strip()
@@ -200,8 +200,8 @@ def menu_interactivo():
             DailyMissions(dev, vis, account=None, db=None).execute(server_id="DEFAULT")
 
         elif opcion == "7":
-            print("\n--- Modo Farneo de Evento Inteligente ---")
-            input("Asegúrate de estar en el menú del evento y presiona Enter...")
+            print("\n--- Modo Farneo de Evento Manual (1 evento) ---")
+            input("Asegúrate de estar DENTRO del evento y presiona Enter...")
             EventFarm(dev, vis).execute()
 
         elif opcion == "8":
@@ -218,10 +218,13 @@ def menu_interactivo():
             log.info("Ejecutando Defensa en la cuenta actual (sin persistencia).")
             Defense(dev, vis, account=None, db=None).execute()
 
-        elif opcion == "11":
+        elif opcion == "11":  # <--- NUEVO BLOQUE
+            print("\n--- Sweep de Eventos Automáticos para todas las cuentas ---")
+            ejecutar_eventos_para_todas(db, dev, vis, force=True)
+
+        elif opcion == "12":  # <--- ACTUALIZADO (era 11)
             log.info("Saliendo del bot.")
             break
-
         else:
             print("Opción no válida. Intenta de nuevo.")
 

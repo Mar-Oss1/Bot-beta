@@ -120,9 +120,9 @@ class BaseTask:
         """Cierra ventanas de loot, victoria, derrota, etc."""
         loot_templates = [
             "templates/pantalla_loot.png",
-            "templates/level_up.png",
             "templates/rewards.png",
             "templates/victory_banner.png",
+            "templates/level_up.png",
             "templates/defeat_banner.png",
             "templates/summon_chest_loot.png",
         ]
