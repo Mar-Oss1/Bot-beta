@@ -166,7 +166,7 @@ class EventFarm:
         posiciones_historia = self.vision.find_all_templates(
             screen,
             "templates/cost_0.png",
-            threshold=0.85
+            threshold=0.8
         )
         # Ordenar por Y (de arriba a abajo) para priorizar primeras
         posiciones_historia.sort(key=lambda p: p[1])
@@ -186,7 +186,7 @@ class EventFarm:
             posiciones = self.vision.find_all_templates(
                 screen,
                 f"templates/{costo_template}",
-                threshold=0.8
+                threshold=0.7
             )
             # Ordenar por Y
             posiciones.sort(key=lambda p: p[1])

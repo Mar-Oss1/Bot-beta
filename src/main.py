@@ -18,6 +18,7 @@ from tasks.event_farm import EventFarm
 from tasks.defense import Defense
 from tasks.raid import Raid
 from tasks.raid_auto import ejecutar_raids_para_todas
+from tasks.event_sweep_auto import ejecutar_eventos_para_todas  # <--- NUEVO IMPORT
 from core.flow_helpers import intentar_login
 
 setup_logger()
@@ -135,6 +136,11 @@ def ejecutar_flujo_completo(db: Database, dev: Device, vis: Vision):
     else:
         log.info("No es horario de raids. Saltando raids automáticos.")
 
+    # [OPCIONAL] Si en el futuro quieres que los eventos también corran solos en el flujo diario,
+    # puedes descomentar estas líneas:
+    # log.info("Ejecutando sweeps de eventos automáticos...")
+    # ejecutar_eventos_para_todas(db, dev, vis)
+
 
 # ======================================================
 # MENÚ INTERACTIVO
@@ -166,7 +172,8 @@ def menu_interactivo():
         print(" 8.  Tiradas Premium")
         print(" 9.  Asedios/Raids (Todas las cuentas automático)")
         print("10.  Defensa War (Manual)")
-        print("11.  Salir")
+        print("11.  Sweep de Eventos (Todas las cuentas automático)")  # <--- NUEVA OPCIÓN
+        print("12.  Salir")                                            # <--- ACTUALIZADO (era 11)
         print("=" * 50)
 
         opcion = input("Selecciona una opción: ").strip()
@@ -211,8 +218,11 @@ def menu_interactivo():
             log.info("Ejecutando Defensa en la cuenta actual (sin persistencia).")
             Defense(dev, vis, account=None, db=None).execute()
 
+        elif opcion == "11":  # <--- NUEVO BLOQUE
+            print("\n--- Sweep de Eventos Automáticos para todas las cuentas ---")
+            ejecutar_eventos_para_todas(db, dev, vis, force=True)
 
-        elif opcion == "11":
+        elif opcion == "12":  # <--- ACTUALIZADO (era 11)
             log.info("Saliendo del bot.")
             break
         else:
