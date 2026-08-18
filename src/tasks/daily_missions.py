@@ -895,7 +895,7 @@ class DailyMissions(BaseTask):
         etapa_encontrada = False
         for etapa in ["stage_ex_10.png", "stage_ex_9.png", "stage_ex_8.png"]:
             screen = self.device.screenshot()
-            pos_s = self.vision.find_template(screen, f"templates/{etapa}", threshold=0.85)
+            pos_s = self.vision.find_template(screen, f"templates/{etapa}", threshold=0.7)
             if pos_s:
                 log.info("Etapa: %s", etapa.replace(".png", ""))
                 self.device.tap(pos_s[0], pos_s[1])

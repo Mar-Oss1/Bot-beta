@@ -95,6 +95,6 @@ class ChangeAccount:
         else:
             log.info("[i] No salió botón 'OK'.")
 
-        log.info("[✓] Secuencia enviada. Esperando reinicio (17s)...")
-        time.sleep(17)
+        log.info("[✓] Secuencia enviada. Esperando reinicio (20s)...")
+        time.sleep(20)
         return True
