@@ -269,6 +269,7 @@ class DailyMissions(BaseTask):
         self.device.tap(pos[0], pos[1])
         self.wait_for_screen_stable(timeout=5, interval=0.5)
 
+        tiradas = 0
         for fase in range(1, 5):
             screen = self.device.screenshot()
             pos_offer = self.vision.find_template(screen, "templates/btn_fountain_offer.png", threshold=0.8)
@@ -278,6 +279,7 @@ class DailyMissions(BaseTask):
                 self.wait_for_screen_stable(timeout=6, interval=0.5)
                 self.clear_loot_windows()
                 time.sleep(0.8)
+                tiradas += 1
             else:
                 log.warning("No se puede tirar más.")
                 break
@@ -285,6 +287,11 @@ class DailyMissions(BaseTask):
         self.cerrar_ventana()
         self.return_to_home()
         self.limpiar_banners_home()
+
+        if tiradas == 0:
+            log.warning("✗ Fountain: 0 tiradas. No se marcará como completado.")
+            return False
+        log.info("✓ Fountain: %d tiradas.", tiradas)
         return True
 
     # ── Detección de SSR ──
@@ -475,6 +482,9 @@ class DailyMissions(BaseTask):
             time.sleep(1.5)
             self.clear_loot_windows()
 
+        fast_forwards_completados = 0
+        exploraciones_completadas = 0
+
         # Fast Forward
         screen = self.device.screenshot()
         pos_ff = self.vision.find_template(screen, "templates/btn_fast_forward_menu.png", threshold=0.85)
@@ -483,23 +493,22 @@ class DailyMissions(BaseTask):
             self.device.tap(pos_ff[0], pos_ff[1])
             self.wait_for_screen_stable(timeout=5, interval=0.5)
 
-            acls = 0
             intentos_flecha = 0
-            max_acls = 2
             max_intentos_flecha = 3
+            max_acls = 2
 
-            while acls < max_acls and intentos_flecha < max_intentos_flecha:
+            while fast_forwards_completados < max_acls and intentos_flecha < max_intentos_flecha:
                 pos_green = self.wait_for_template(
                     "templates/btn_ff_green.png",
                     timeout=2, threshold=0.85, interval=0.3
                 )
                 if pos_green:
-                    log.info("  Fast Forward #%d encontrado. Ejecutando...", acls + 1)
+                    log.info("  Fast Forward #%d encontrado. Ejecutando...", fast_forwards_completados + 1)
                     self.device.tap(pos_green[0], pos_green[1])
                     time.sleep(2.5)
                     self.device.tap(100, 100)
                     time.sleep(0.8)
-                    acls += 1
+                    fast_forwards_completados += 1  # ← INCREMENTAR
                     intentos_flecha = 0
                     self.wait_for_screen_stable(timeout=3, interval=0.5)
                     continue
@@ -520,44 +529,49 @@ class DailyMissions(BaseTask):
             time.sleep(0.8)
 
         # Explorar (3 veces)
-        for _ in range(3):
+        for i in range(3):
             self.clear_loot_windows()
             screen = self.device.screenshot()
             pos_exp = self.vision.find_template(screen, "templates/btn_explore.png", threshold=0.85)
             if pos_exp:
-                log.info("Explorando...")
+                log.info("Explorando (%d/3)...", i + 1)
                 self.device.tap(pos_exp[0], pos_exp[1])
                 time.sleep(2.5)
                 self.clear_loot_windows()
+                exploraciones_completadas += 1  # ← INCREMENTAR
             else:
+                log.warning("No se encontró botón de explorar. Solo %d/3 exploraciones.", exploraciones_completadas)
                 break
 
-        # Boss (con reintentos por empate)
-        reintentos = 0
-        while reintentos < 3:
-            screen = self.device.screenshot()
-            pos_boss = self.vision.find_template(screen, "templates/btn_challenge_boss.png", threshold=0.85)
-            if not pos_boss:
-                break
+        screen = self.device.screenshot()
+        pos_boss = self.vision.find_template(screen, "templates/btn_challenge_boss.png", threshold=0.85)
+        boss_completado = False
+        if pos_boss:
             log.info("Desafiando al Boss...")
             self.device.tap(pos_boss[0], pos_boss[1])
             log.info("Esperando respuesta del servidor...")
             time.sleep(6)
-            if self.handle_battle_sequence() == "draw":
-                reintentos += 1
-                log.warning("Empate en Torre (%d/3). Reintentando...", reintentos)
-                time.sleep(1.5)
-            else:
-                break
-
-        if reintentos == 3:
-            log.warning("Límite de empates alcanzado en Torre.")
+            self.handle_battle_sequence()
+            boss_completado = True
+        else:
+            log.warning("No se encontró el botón del Boss.")
 
         self.return_to_home()
         self.limpiar_banners_home()
-        return True
 
-    # ── Alianza ──
+        log.info("--" * 30)
+        log.info("Tower: %d/2 Fast Forwards", fast_forwards_completados)
+        log.info("Tower: %d/3 Exploraciones", exploraciones_completadas)
+        log.info("Tower: Boss %s", "completado" if boss_completado else "NO completado")
+        log.info("--" * 30)
+
+        if fast_forwards_completados >= 1 and exploraciones_completadas >= 2 and boss_completado:
+            log.info("✓ Tower completada.")
+            return True
+        else:
+            log.warning("✗ Tower incompleta. No se marcará como completada.")
+            return False
+
     def do_alliance_quest(self) -> bool:
         log.info("Módulo: Misiones de Gremio")
 
@@ -594,7 +608,6 @@ class DailyMissions(BaseTask):
                 self.wait_for_screen_stable(timeout=8, interval=0.5)
                 self.clear_loot_windows()
                 self.cerrar_ventana()
-                # self.return_to_home()
                 return True
             else:
                 log.warning("No se encontró botón VIP. Usando flujo normal...")
@@ -668,37 +681,67 @@ class DailyMissions(BaseTask):
         self.device.tap(int(arenas[0][0]), int(arenas[0][1] + 190))
         self.wait_for_screen_stable(timeout=4, interval=0.5)
 
+        # ═══════════════════════════════════════════════════════════
+        # FIX: Contador de batallas exitosas para saber si realmente
+        # se completó el módulo
+        # ═══════════════════════════════════════════════════════════
+        batallas_exitosas = 0
+        batallas_fallidas = 0
+
         for i in range(5):
             log.info("Combate %d/5...", i + 1)
             reintentos = 0
+            combate_ok = False
+
             while reintentos < 3:
                 screen = self.device.screenshot()
                 oponentes = self.vision.find_all_templates(
                     screen, "templates/challenge_area.png", threshold=0.85
                 )
                 if not oponentes:
-                    log.warning("No se encontraron oponentes.")
-                    break
+                    log.warning("No se encontraron oponentes en combate %d.", i + 1)
+                    break  # Sale del while, combate_ok sigue en False
+
                 oponentes.sort(key=lambda p: p[1])
                 self.device.tap(oponentes[0][0], oponentes[0][1])
 
-                if self.handle_battle_sequence() == "draw":
+                resultado_batalla = self.handle_battle_sequence()
+                if resultado_batalla == "draw":
                     reintentos += 1
                     log.warning("Empate en Arena (%d/3). Reintentando...", reintentos)
                     time.sleep(1.5)
                 else:
+                    # Batalla completada (victoria o derrota, ambas cuentan)
+                    combate_ok = True
                     break
-            if reintentos == 3:
-                log.warning("Límite de empates alcanzado en Arena.")
+
+            # ═══════════════════════════════════════════════════════
+            # Evaluar resultado del combate
+            # ═══════════════════════════════════════════════════════
+            if combate_ok:
+                batallas_exitosas += 1
+                log.info("  ✓ Combate %d completado.", i + 1)
+            else:
+                batallas_fallidas += 1
+                if reintentos >= 3:
+                    log.warning("  ✗ Combate %d falló: límite de empates.", i + 1)
+                else:
+                    log.warning("  ✗ Combate %d falló: sin oponentes.", i + 1)
+
             time.sleep(1.5)
 
-        log.info("Arena finalizada.")
-        self.cerrar_ventana()
-        return True
+        log.info("--" * 30)
+        log.info("Arena: %d/5 batallas exitosas, %d fallidas.", batallas_exitosas, batallas_fallidas)
+        log.info("--" * 30)
 
-    # ═══════════════════════════════════════════════════════════════════════
-    #  INVOCACIONES GRATUITAS  —  VERSIÓN CORREGIDA
-    # ═══════════════════════════════════════════════════════════════════════
+        self.cerrar_ventana()
+        if batallas_exitosas >= 4:
+            log.info("  ✓ Arena completada (%d/5).", batallas_exitosas)
+            return True
+        else:
+            log.warning("  ✗ Arena incompleta (%d/5). No se marcará como completada.", batallas_exitosas)
+            return False
+
     def do_summons(self) -> bool:
         log.info("🌟 Módulo: Invocaciones")
 
@@ -710,10 +753,9 @@ class DailyMissions(BaseTask):
             return False
 
         self.device.tap(pos_nav[0], pos_nav[1])
-        # FIX: Mayor timeout para animaciones de banners
         self.wait_for_screen_stable(timeout=6, interval=0.5)
 
-        # 2. Buscar banner de invocaciones gratuitas (con polling generoso)
+        # 2. Buscar banner de invocaciones gratuitas
         encontrado = False
         intentos_banner = 0
         free_templates = [
@@ -722,19 +764,17 @@ class DailyMissions(BaseTask):
         ]
 
         while not encontrado and intentos_banner < 3:
-            # FIX: Usar wait_for_template con timeout corto en lugar de screenshot instantáneo
-            # Esto da tiempo a que los banners terminen su animación de entrada
             result = self.vision.wait_for_template(
                 self.device.screenshot,
-                free_templates[0],  # x1_free
+                free_templates[0],
                 timeout=2,
-                threshold=0.7,  # FIX: Bajar de 0.9 a 0.85 (menos estricto)
+                threshold=0.7,
                 interval=0.2
             )
             if not result:
                 result = self.vision.wait_for_template(
                     self.device.screenshot,
-                    free_templates[1],  # x10_free
+                    free_templates[1],
                     timeout=2,
                     threshold=0.7,
                     interval=0.2
@@ -744,7 +784,6 @@ class DailyMissions(BaseTask):
                 encontrado = True
                 log.info("  [✓] Banner con invocaciones gratuitas encontrado.")
             else:
-                # Intentar navegar con flecha
                 pos_arrow = self.vision.find_template(
                     self.device.screenshot(),
                     "templates/btn_summon_arrow_left.png",
@@ -753,7 +792,7 @@ class DailyMissions(BaseTask):
                 if pos_arrow:
                     log.debug("  Navegando banners con flecha (intento %d)...", intentos_banner + 1)
                     self.device.tap(pos_arrow[0], pos_arrow[1])
-                    time.sleep(1.5)  # FIX: Dar tiempo a la transición de banner
+                    time.sleep(1.5)
                     intentos_banner += 1
                 else:
                     log.warning("  No se encontró flecha para navegar banners.")
@@ -780,6 +819,7 @@ class DailyMissions(BaseTask):
             self.clear_loot_windows()
 
         # 4. Invocación x1 gratuita
+        invocaciones_hechas = 0
         pos_x1 = self.wait_for_template(
             "templates/btn_summon_x1_free.png",
             timeout=2,
@@ -799,6 +839,7 @@ class DailyMissions(BaseTask):
                 log.info("  [+] Confirmando invocación x1...")
                 self.device.tap(pos_confirm[0], pos_confirm[1])
                 self._limpiar_invocacion()
+                invocaciones_hechas += 1
             else:
                 log.warning("  No apareció confirmación para x1.")
 
@@ -822,12 +863,18 @@ class DailyMissions(BaseTask):
                 log.info("  [+] Confirmando invocación x10...")
                 self.device.tap(pos_confirm[0], pos_confirm[1])
                 self._limpiar_invocacion()
+                invocaciones_hechas += 1
             else:
                 log.warning("  No apareció confirmación para x10.")
 
         # 6. Salir de invocaciones
         self._salir_de_invocaciones()
         self.limpiar_banners_home()
+
+        if invocaciones_hechas == 0:
+            log.warning("✗ Invocaciones: 0 ejecutadas. No se marcará como completado.")
+            return False
+        log.info("✓ Invocaciones: %d ejecutadas.", invocaciones_hechas)
         return True
 
     def _salir_de_invocaciones(self):
@@ -872,7 +919,9 @@ class DailyMissions(BaseTask):
         eventos = None
         for intento in range(3):
             screen = self.device.screenshot()
-            eventos = self.vision.find_all_templates(screen, "templates/label_ends_in.png", threshold=0.75)
+            eventos = self.vision.find_all_templates(
+                screen, "templates/label_ends_in.png", threshold=0.75
+            )
             if eventos:
                 break
             if intento < 2:
@@ -881,70 +930,98 @@ class DailyMissions(BaseTask):
 
         if not eventos:
             log.warning("No se encontraron banners de eventos activos.")
-            return True
+            return True  # No es error, simplemente no hay eventos
 
-        # 2. Tomar SOLO el primer evento (el más alto en pantalla)
+        # 2. ORDENAR por Y (de arriba hacia abajo) y PROBAR TODOS
         eventos.sort(key=lambda p: p[1])
-        pos_evento = eventos[0]
+        log.info("Eventos encontrados: %d. Buscando uno con sweeps...", len(eventos))
 
-        log.info("[>] Evento #1 (procesamiento único)...")
-        self.device.tap(pos_evento[0], pos_evento[1])
-        self.wait_for_screen_stable(timeout=5, interval=0.5)
+        sweeps_totales = 0
 
-        # 3. Buscar etapa EX disponible (10 > 9 > 8)
-        etapa_encontrada = False
-        for etapa in ["stage_ex_10.png", "stage_ex_9.png", "stage_ex_8.png"]:
-            screen = self.device.screenshot()
-            pos_s = self.vision.find_template(screen, f"templates/{etapa}", threshold=0.7)
-            if pos_s:
-                log.info("Etapa: %s", etapa.replace(".png", ""))
-                self.device.tap(pos_s[0], pos_s[1])
-                self.wait_for_screen_stable(timeout=4, interval=0.5)
-                etapa_encontrada = True
-                break
+        for i, pos_evento in enumerate(eventos):
+            log.info("=" * 45)
+            log.info("Probando evento %d/%d (Y=%d)...", i + 1, len(eventos), pos_evento[1])
+            log.info("=" * 45)
 
-        if not etapa_encontrada:
-            log.info("Sin etapas EX disponibles en este evento.")
+            # Entrar al evento
+            self.device.tap(pos_evento[0], pos_evento[1])
+            self.wait_for_screen_stable(timeout=5, interval=0.5)
+
+            # 3. Buscar etapa EX disponible (prioridad: 10 > 9 > 8)
+            etapa_encontrada = False
+            for etapa in ["stage_ex_10.png", "stage_ex_9.png", "stage_ex_8.png"]:
+                screen = self.device.screenshot()
+                pos_s = self.vision.find_template(
+                    screen, f"templates/{etapa}", threshold=0.7
+                )
+                if pos_s:
+                    log.info("✓ Etapa encontrada: %s", etapa.replace(".png", ""))
+                    self.device.tap(pos_s[0], pos_s[1])
+                    self.wait_for_screen_stable(timeout=4, interval=0.5)
+                    etapa_encontrada = True
+                    break
+
+            if not etapa_encontrada:
+                log.info("✗ Sin etapas EX en este evento. Probando el siguiente...")
+                # Salir del evento y probar el siguiente
+                self.cerrar_ventana()
+                time.sleep(1)
+                self.return_to_home()
+                self.limpiar_banners_home()
+                time.sleep(1)
+                continue  # → Siguiente evento del for
+
+            # 4. ETAPA ENCONTRADA → Realizar sweeps (máximo 3)
+            sweeps_en_este_evento = 0
+            while sweeps_en_este_evento < 3:
+                screen = self.device.screenshot()
+                pos_sweep = self.vision.find_template(
+                    screen, "templates/btn_sweep.png", threshold=0.85
+                )
+                if not pos_sweep:
+                    log.warning("Botón Sweep no detectado. Saliendo del loop.")
+                    break
+
+                self.device.tap(pos_sweep[0], pos_sweep[1])
+                time.sleep(1.5)
+
+                if self.check_and_recover_mana():
+                    log.info("Maná insuficiente. Reintentando sweep...")
+                    continue
+
+                log.info("Sweep #%d completado.", sweeps_en_este_evento + 1)
+                time.sleep(1.5)
+                self.clear_loot_windows()
+                sweeps_en_este_evento += 1
+
+            sweeps_totales += sweeps_en_este_evento
+            log.info("Evento %d: %d sweeps completados.", i + 1, sweeps_en_este_evento)
+
+            # Si logramos al menos 1 sweep, MISIÓN CUMPLIDA → salir
+            if sweeps_en_este_evento > 0:
+                log.info("✓ Maná gastado exitosamente en evento %d.", i + 1)
+                # Salir del evento y volver a home
+                self.cerrar_ventana()
+                time.sleep(1)
+                self.return_to_home()
+                self.limpiar_banners_home()
+                time.sleep(1)
+                log.info("✓ Maná: %d sweeps totales.", sweeps_totales)
+                return True
+
+            # Si llegamos aquí, no hicimos sweeps → probar siguiente evento
+            log.info("✗ No se completaron sweeps. Probando siguiente evento...")
+            self.cerrar_ventana()
+            time.sleep(1)
             self.return_to_home()
             self.limpiar_banners_home()
-            return True
+            time.sleep(1)
 
-        # 4. Realizar sweeps (máximo 3)
-        # Usamos while en lugar de for para poder reintentar sin perder el contador
-        # cuando se recupera maná.
-        sweeps_completados = 0
-        while sweeps_completados < 3:
-            screen = self.device.screenshot()
-            pos_sweep = self.vision.find_template(screen, "templates/btn_sweep.png", threshold=0.85)
-            if not pos_sweep:
-                log.warning("Botón Sweep no detectado. Saliendo del loop de sweeps.")
-                break
+        if sweeps_totales == 0:
+            log.warning("✗ Maná: 0 sweeps en %d eventos. No se marcará como completado.", len(eventos))
+            return False
 
-            self.device.tap(pos_sweep[0], pos_sweep[1])
-            time.sleep(1.5)  # Esperar a que aparezca popup de maná o ventana de loot
-
-            # === LLAMADA A LA FUNCIÓN DE RECUPERACIÓN ===
-            if self.check_and_recover_mana():
-                log.info("Maná insuficiente detectado y recuperado. Reintentando sweep...")
-                # No incrementamos sweeps_completados porque el sweep anterior
-                # no se ejecutó (el juego mostró popup y requiere tocar sweep de nuevo).
-                continue
-            # =============================================
-
-            # Si llegamos aquí, no hubo popup de maná: el sweep fue exitoso.
-            log.info("Sweep #%d completado.", sweeps_completados + 1)
-            time.sleep(1.5)
-            self.clear_loot_windows()
-            sweeps_completados += 1
-
-        # 5. Cerrar ventanas y volver a home
-        for _ in range(2):
-            self.cerrar_ventana()
-
-        self.return_to_home()
-        self.limpiar_banners_home()
-        time.sleep(1.5)
-
+        log.info("✓ Maná: %d sweeps totales.", sweeps_totales)
         return True
 
     # ── Reclamar recompensas ──

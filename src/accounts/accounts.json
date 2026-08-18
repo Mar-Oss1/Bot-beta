@@ -4,7 +4,7 @@
       "id": 1,
       "name": "Mcbeth/Beth",
       "serial": "B5DF7BWQLEYM",
-      "enabled": true,
+      "enabled": false,
       "priority": 1,
       "notes": "Multi-server",
       "servers": [

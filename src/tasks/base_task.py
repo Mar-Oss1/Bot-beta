@@ -14,14 +14,11 @@ class BaseTask:
         self.db = db
 
     # ---- Métodos de espera (delegados a vision) ----
-    def wait_for_template(self, template_path, timeout=10, threshold=None, interval=0.3, log_progress=False):
+    def wait_for_template(self, template_path, timeout=10, threshold=None, interval=0.25,
+                          log_progress=False):
         return self.vision.wait_for_template(
-            self.device.screenshot,
-            template_path,
-            timeout=timeout,
-            threshold=threshold,
-            interval=interval,
-            log_progress=log_progress
+            self.device.screenshot, template_path, timeout=timeout,
+            threshold=threshold, interval=interval, log_progress=log_progress
         )
 
     def wait_for_screen_stable(self, timeout=15, interval=0.8, stability_threshold=0.98, min_stable_checks=2):
@@ -46,35 +43,27 @@ class BaseTask:
 
     # ---- Funciones auxiliares optimizadas ----
     def cerrar_ventana(self, screen=None):
-        """Cierra ventana emergente con X, back o botón físico."""
         if screen is None:
             screen = self.device.screenshot()
-
         result = self.vision.find_any(screen, [
             "templates/btn_cerrar_x.png",
             "templates/btn_back.png"
         ], threshold=0.8)
-
         if result:
             template, x, y = result
-            log.debug("Cerrando con %s", os.path.basename(template))
             self.device.tap(x, y)
-            time.sleep(1)
+            time.sleep(0.6)  # ← era 1
             return
-
-        log.debug("Sin botón de cierre. Usando back de Android.")
         self.device.d.press("back")
-        time.sleep(1)
+        time.sleep(0.6)  # ← era 1
 
     def return_to_home(self):
-        """Vuelve a la pantalla principal del juego."""
-        # Intento rápido: ¿ya estamos en home?
         pos = self.vision.find_template(
             self.device.screenshot(), "templates/btn_home_nav.png", threshold=0.85
         )
         if pos:
             self.device.tap(pos[0], pos[1])
-            time.sleep(1.5)
+            time.sleep(1.0)  # ← era 1.5
             self.limpiar_banners_home()
             return
 

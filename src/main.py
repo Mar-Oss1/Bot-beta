@@ -69,7 +69,7 @@ def _procesar_servidor(
 
     # Cerrar juego después del servidor
     dev.d.app_stop(APP_PACKAGE)
-    time.sleep(3)
+    time.sleep(1)
 
     return exito
 

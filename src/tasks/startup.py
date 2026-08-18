@@ -18,7 +18,7 @@ class Startup:
 
         for intento in range(max_intentos):
             if self.handle_comeback_bonus():
-                time.sleep(1.5)
+                time.sleep(1)
                 continue
 
             screen = self.device.screenshot()
@@ -39,19 +39,19 @@ class Startup:
                 if "claim" in template:
                     log.debug("[+] Reclamando botón universal...")
                     self.device.tap(x, y)
-                    time.sleep(1.5)
+                    time.sleep(1)
                 elif "cerrar_x" in template:
                     log.debug("[-] Cerrando anuncio/banner...")
                     self.device.tap(x, y)
-                    time.sleep(1.5)
+                    time.sleep(1)
                 elif "pantalla_titulo" in template:
                     log.debug("[>] Dando Start al juego...")
                     self.device.tap(x, y)
-                    time.sleep(2.5)
+                    time.sleep(1.5)
                 else:  # recompensa_login
                     log.debug("[>] Saltando animación de recompensas...")
                     self.device.tap(100, 800)
-                    time.sleep(2.5)
+                    time.sleep(1.5)
 
             if not algo_encontrado:
                 log.debug("[i] Pantalla aparentemente limpia. Verificando...")

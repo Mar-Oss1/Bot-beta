@@ -246,7 +246,11 @@ class Defense(BaseTask):
         log.info("--" * 45)
         log.info("Resumen Defensa - %s", cuenta_label)
         for nombre, ok in resultados.items():
-            log.info(" %s: %s", nombre, "Asignada" if ok else "Falló")
+            log.info("%s: %s", nombre, "Asignada" if ok else "Fallo")
         log.info("--" * 45)
+
+        if not resultados:
+            log.warning("Defensa: nada ejecutado (fuera de horario). No se marcará como completada.")
+            return False
 
         return all(resultados.values())
