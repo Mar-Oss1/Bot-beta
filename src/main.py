@@ -33,15 +33,7 @@ def _procesar_servidor(
         cuenta, db: Database, dev: Device, vis: Vision,
         server_id: str, es_primer_servidor: bool
 ):
-    """
-    Maneja el ciclo completo para un servidor específico:
-    1. Reabre el juego si no es el primer servidor de la cuenta.
-    2. Cambia al servidor si no es DEFAULT.
-    3. Corre el Startup (rompehielos).
-    4. Corre DailyMissions, pasando Account y Database.
-    5. Cierra el juego.
-    Retorna True si el servidor se procesó correctamente.
-    """
+
     if not es_primer_servidor:
         log.info("Reabriendo juego para servidor %s...", server_id)
         dev.open_app()

@@ -432,9 +432,7 @@ class Raid(BaseTask):
 
         log.warning("[!] No se confirmó visualmente la lista. Continuando...")
 
-    # ═══════════════════════════════════════════════════════════
-    # EJECUCIÓN PRINCIPAL - CON OPTIMIZACIÓN DE REPETICIÓN
-    # ═══════════════════════════════════════════════════════════
+
     def execute(self) -> bool:
         self._sid = getattr(self, "_sid", None)
         cuenta_label = self.account.name if self.account else "Prueba"
@@ -469,21 +467,18 @@ class Raid(BaseTask):
             log.info("  Batalla %d/%d", i + 1, len(plan))
             log.info("=" * 45)
 
-            # ═══════════════════════════════════════════════════
-            # OPTIMIZACIÓN: ¿El anterior era del mismo tipo?
-            # Si sí → intentar repetir directo sin volver a lista
-            # Si no → navegación normal desde la lista
-            # ═══════════════════════════════════════════════════
-            es_mismo_tipo_que_anterior = (
-                i > 0 and plan[i - 1]["tipo"] == monstruo["tipo"]
+            es_mismo_que_anterior = (
+                    i > 0
+                    and plan[i - 1]["tipo"] == monstruo["tipo"]
+                    and plan[i - 1]["power"] == monstruo["power"]
             )
 
-            if es_mismo_tipo_que_anterior:
+            if es_mismo_que_anterior:
                 # ── INTENTO RÁPIDO: Create ya visible ──
-                log.info("[⚡] Mismo tipo que anterior. Buscando Create directo...")
+                log.info("[⚡] Mismo monstruo (tipo y poder) que anterior. Buscando Create directo...")
                 pos_create_wait = self.wait_for_template(
                     "templates/btn_siege_create.png",
-                    timeout=5,       # Solo 5s: si no está, algo salió mal
+                    timeout=5,  # Solo 5s: si no está, algo salió mal
                     threshold=0.80,
                     interval=0.4
                 )
@@ -507,7 +502,7 @@ class Raid(BaseTask):
                         self._volver_a_lista()
                         continue
             else:
-                # ── NAVEGACIÓN NORMAL: Primera batalla o tipo diferente ──
+                # ── NAVEGACIÓN NORMAL: Primera batalla o monstruo diferente ──
                 self.device.tap(monstruo["enter_x"], monstruo["y"])
                 log.info("[⏳] Esperando pantalla de creación de party...")
                 pos_create_wait = self.wait_for_template(
@@ -538,19 +533,14 @@ class Raid(BaseTask):
 
             self._esperar_batalla()
 
-            # ═══════════════════════════════════════════════════
-            # DECISIÓN: ¿Volver a lista o no?
-            # Solo volver si el SIGUIENTE es de tipo DIFERENTE
-            # Si es mismo tipo, quedarse para repetir directo
-            # ═══════════════════════════════════════════════════
             if i < len(plan) - 1:
-                siguiente_tipo = plan[i + 1]["tipo"]
-                if siguiente_tipo != monstruo["tipo"]:
-                    log.info("[←] Siguiente es tipo diferente. Volviendo a lista...")
+                siguiente = plan[i + 1]
+                if siguiente["tipo"] != monstruo["tipo"] or siguiente["power"] != monstruo["power"]:
+                    log.info("[←] Siguiente es diferente (tipo o poder). Volviendo a lista...")
                     self._volver_a_lista()
                 else:
-                    log.info("[⚡] Siguiente es mismo tipo (%s). No retrocedemos.",
-                             MONSTER_TYPES[siguiente_tipo]["name"])
+                    log.info("[⚡] Siguiente es idéntico (%s, Poder: %d). No retrocedemos.",
+                             MONSTER_TYPES[siguiente["tipo"]]["name"], siguiente["power"])
                     # No hacemos nada: la próxima iteración buscará Create directo
 
         log.info("[←] Volviendo al home...")
