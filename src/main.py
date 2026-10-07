@@ -164,8 +164,8 @@ def menu_interactivo():
         print(" 8.  Tiradas Premium")
         print(" 9.  Asedios/Raids (Todas las cuentas automático)")
         print("10.  Defensa War (Manual)")
-        print("11.  Sweep de Eventos (Todas las cuentas automático)")  # <--- NUEVA OPCIÓN
-        print("12.  Salir")                                            # <--- ACTUALIZADO (era 11)
+        print("11.  Sweep de Eventos (Todas las cuentas automático)")
+        print("12.  Salir")
         print("=" * 50)
 
         opcion = input("Selecciona una opción: ").strip()
