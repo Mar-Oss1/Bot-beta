@@ -21,7 +21,7 @@ class BaseTask:
             threshold=threshold, interval=interval, log_progress=log_progress
         )
 
-    def wait_for_screen_stable(self, timeout=5, interval=0.5, stability_threshold=0.98, min_stable_checks=2):
+    def wait_for_screen_stable(self, timeout=7, interval=0.5, stability_threshold=0.98, min_stable_checks=2):
         return self.vision.wait_for_screen_stable(
             self.device.screenshot,
             timeout=timeout,

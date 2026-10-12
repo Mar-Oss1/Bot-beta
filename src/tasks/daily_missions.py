@@ -75,9 +75,10 @@ class DailyMissions(BaseTask):
             log.error("Error de OCR: %s", e)
             return 0
 
-    def _limpiar_invocacion(self):
-        """Espera y salta la animación de invocación."""
+    def _skip_animacion(self):
+
         log.debug("Esperando botón Skip de invocación...")
+
         pos_skip = self.wait_for_template(
             "templates/btn_skip_scene.png",
             timeout=10, threshold=0.7, interval=0.5
@@ -90,7 +91,7 @@ class DailyMissions(BaseTask):
             log.debug("Sin botón Skip. Esperando animación natural...")
             time.sleep(4)
 
-        # Esperar OK o rewards (polling optimizado)
+    def _limpiar_invocacion(self):
         for _ in range(10):
             screen = self.device.screenshot()
             result = self.vision.find_any(screen, [
@@ -321,26 +322,6 @@ class DailyMissions(BaseTask):
             self.device.tap(pos_skip[0], pos_skip[1])
             time.sleep(2)
 
-    def _limpiar_invocacion_lite(self, timeout=4):  # ← Cambia de 12 a 4
-        log.debug("Cierre lite: esperando botón OK...")
-        pos_ok = self.wait_for_template(
-            "templates/btn_skip_ok.png",
-            timeout=timeout,
-            threshold=0.75,
-            interval=0.3
-        )
-        if pos_ok:
-            log.info("Botón OK detectado. Cerrando...")
-            self.device.tap(pos_ok[0], pos_ok[1])
-            time.sleep(0.5)
-        else:
-            log.debug("Sin OK tras %ds. Haciendo tap genérico...", timeout)
-            self.device.tap(720, 1200)
-            time.sleep(0.3)
-
-        self.clear_loot_windows()
-        time.sleep(0.3)  # ← Reduce de 0.5
-
     def do_premium_summons(self, veces: int = 1, parar_sin_ssr: int = 0):
         log.info("Módulo: Invocación Premium (%d vez/veces | parar sin SSR: %s)",
                  veces, f"cada {parar_sin_ssr}" if parar_sin_ssr > 0 else "desactivado")
@@ -566,7 +547,7 @@ class DailyMissions(BaseTask):
             log.info("Desafiando al Boss...")
             self.device.tap(pos_boss[0], pos_boss[1])
             log.info("Esperando respuesta del servidor...")
-            time.sleep(10)
+            time.sleep(8)
             self.handle_battle_sequence()
             boss_completado = True
         else:
@@ -854,7 +835,7 @@ class DailyMissions(BaseTask):
             if pos_confirm:
                 log.info("  [+] Confirmando invocación x1...")
                 self.device.tap(pos_confirm[0], pos_confirm[1])
-                self._limpiar_invocacion_lite()
+                self._limpiar_invocacion()
                 invocaciones_hechas += 1
             else:
                 log.warning("  No apareció confirmación para x1.")
@@ -878,7 +859,7 @@ class DailyMissions(BaseTask):
             if pos_confirm:
                 log.info("  [+] Confirmando invocación x10...")
                 self.device.tap(pos_confirm[0], pos_confirm[1])
-                self._limpiar_invocacion_lite()
+                self._limpiar_invocacion()
                 invocaciones_hechas += 1
             else:
                 log.warning("  No apareció confirmación para x10.")
@@ -1058,7 +1039,7 @@ class DailyMissions(BaseTask):
         if pos_mail:
             log.info("Accediendo al buzón...")
             self.device.tap(pos_mail[0], pos_mail[1])
-            self.wait_for_screen_stable(timeout=3, interval=0.5)
+            self.wait_for_screen_stable(timeout=4, interval=0.5)
 
             screen = self.device.screenshot()
             pos_claim = self.vision.find_template(screen, "templates/btn_claim_all.png", threshold=0.85)
