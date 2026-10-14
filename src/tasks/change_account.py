@@ -95,6 +95,17 @@ class ChangeAccount:
         else:
             log.info("[i] No salió botón 'OK'.")
 
-        log.info("[✓] Secuencia enviada. Esperando reinicio (17s)...")
-        time.sleep(17)
+        log.info("[✓] Secuencia enviada. Esperando reinicio (20s)...")
+        log.info("[✓] Secuencia enviada. Esperando reinicio...")
+
+        # ═══ FIX: En vez de time.sleep(20), esperar pantalla de título ═══
+        pos_titulo = self.vision.wait_for_template(
+            self.device.screenshot,
+            "templates/pantalla_titulo.png",
+            timeout=30,
+            threshold=0.8,
+            interval=1.0
+        )
+        if pos_titulo:
+            log.info("[✓] Pantalla de título detectada tras reinicio")
         return True
