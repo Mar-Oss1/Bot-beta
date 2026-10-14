@@ -1,4 +1,3 @@
-# tasks/defense.py  (OPTIMIZADO)
 import time
 from core.logger import get_logger
 from tasks.base_task import BaseTask
@@ -7,7 +6,7 @@ from core.utils import es_hora_defensa_alliance_war, es_hora_defensa_war_realms
 log = get_logger("defense")
 
 ALLIANCE_TEMPLATES = {
-    "Somnia": ["templates/alliance_noterindas.png"],
+    "Somnial": ["templates/alliance_noterindas.png"],
     "KuroNeko": ["templates/alliance_noterindas.png"],
     "Diferoku": ["templates/alliance_noterindas.png"],
     "ASRA": ["templates/alliance_noterindas.png"],
@@ -27,21 +26,39 @@ EVENTS = [
     {"name": "War of the Realms", "template": "templates/war_of_the_realms.png", "is_last": True},
 ]
 
-SCROLL_PATTERN = [
-    (1400, 650, 1400, 200, 1.0),
-    (1400, 200, 1400, 50, 1.0),
-    (1400, 250, 1900, 250, 1.0),
-    (1900, 250, 1950, 250, 1.0),
-    (1700, 150, 1700, 850, 1.0),
-    (1700, 650, 1700, 1400, 1.0),
-    (1700, 1000, 1100, 1000, 1.0),
-    (1100, 1000, 850, 1000, 1.0),
-]
-
 
 class Defense(BaseTask):
     def __init__(self, device, vision, account, db):
         super().__init__(device, vision, account, db)
+
+    def _generar_espiral_scroll(self, cx=1200, cy=540, paso=350, max_vueltas=2):
+        """
+        Genera dinámicamente las coordenadas de swipe en una espiral cuadrada.
+        cx, cy: Centro de tu pantalla (POCO X5 Pro horizontal es ~1200, 540)
+        paso: Distancia del arrastre en píxeles.
+        """
+        movimientos = []
+        x, y = cx, cy
+        direcciones = [(0, -1), (1, 0), (0, 1), (-1, 0)]  # Arriba, Derecha, Abajo, Izquierda
+        longitud = 1
+        idx = 0
+
+        for _ in range(max_vueltas * 2):
+            for _ in range(2):
+                dx, dy = direcciones[idx]
+                nx = x + (dx * paso * longitud)
+                ny = y + (dy * paso * longitud)
+
+                # Mantenemos las coordenadas de swipe dentro de los márgenes físicos seguros del celular
+                nx = max(100, min(2300, nx))
+                ny = max(100, min(980, ny))
+
+                movimientos.append((x, y, nx, ny, 0.8))
+                x, y = nx, ny
+                idx = (idx + 1) % 4
+            longitud += 1
+
+        return movimientos
 
     def _get_alliance_templates(self) -> list:
         if self.account is None:
@@ -59,7 +76,6 @@ class Defense(BaseTask):
         log.info("Entrado a %s.", event["name"])
         return True
 
-    # ── Buscar castillo con find_any (1 screenshot, N templates) ──
     def _buscar_castillo(self) -> tuple | None:
         templates = self._get_alliance_templates()
         log.info("Buscando castillo con templates: %s", templates)
@@ -74,21 +90,24 @@ class Defense(BaseTask):
         screen = self.device.screenshot()
         result = self.vision.find_any(screen, templates, threshold=0.82)
         if result:
-            log.info("Castillo encontrado: %s", result[0])
+            log.info("Castillo encontrado sin necesidad de scroll: %s", result[0])
             return (result[1], result[2])
 
-        # Scroll hasta encontrar
-        for i, (x1, y1, x2, y2, pausa) in enumerate(SCROLL_PATTERN):
-            log.info("Scroll %d/%d...", i + 1, len(SCROLL_PATTERN))
-            self.device.swipe(x1, y1, x2, y2, duration=0.8)
-            time.sleep(pausa)
+        # Generar movimientos matemáticos
+        patron_espiral = self._generar_espiral_scroll()
+
+        for i, (x1, y1, x2, y2, duracion) in enumerate(patron_espiral):
+            log.info("Scroll %d/%d (espiral)...", i + 1, len(patron_espiral))
+            self.device.swipe(x1, y1, x2, y2, duration=duracion)
+            time.sleep(1.0)  # Estabilización tras el swipe
+
             screen = self.device.screenshot()
             result = self.vision.find_any(screen, templates, threshold=0.82)
             if result:
                 log.info("Castillo encontrado en scroll %d.", i + 1)
                 return (result[1], result[2])
 
-        log.warning("Sin castillo tras %d scrolls.", len(SCROLL_PATTERN))
+        log.warning("Sin castillo tras %d barridos en espiral.", len(patron_espiral))
         return None
 
     def _tocar_castillo_y_abrir_menu(self, pos: tuple) -> bool:
@@ -172,8 +191,7 @@ class Defense(BaseTask):
         log.info("Evento: %s", event["name"])
         log.info("-" * 45)
 
-        if not self._entrar_evento(event):
-            return False
+        if not self._entrar_evento(event): return False
 
         pos_castillo = self._buscar_castillo()
         if not pos_castillo:
@@ -239,6 +257,7 @@ class Defense(BaseTask):
             if event["name"] == "War of the Realms" and not es_hora_defensa_war_realms():
                 log.info("War of the Realms fuera de horario. Saltando.")
                 continue
+
             exito = self._defender_en_evento(event)
             resultados[event["name"]] = exito
             time.sleep(2)

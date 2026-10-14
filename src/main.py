@@ -18,52 +18,11 @@ from tasks.event_farm import EventFarm
 from tasks.defense import Defense
 from tasks.raid import Raid
 from tasks.raid_auto import ejecutar_raids_para_todas
-from tasks.event_sweep_auto import ejecutar_eventos_para_todas  # <--- NUEVO IMPORT
-from core.flow_helpers import intentar_login
+from tasks.event_sweep_auto import ejecutar_eventos_para_todas
+from core.flow_helpers import intentar_login, procesar_servidor  # Importamos el helper centralizado
 
 setup_logger()
 log = get_logger("main")
-
-
-# ======================================================
-# HELPERS DEL FLUJO PRINCIPAL
-# ======================================================
-
-def _procesar_servidor(
-        cuenta, db: Database, dev: Device, vis: Vision,
-        server_id: str, es_primer_servidor: bool
-):
-
-    if not es_primer_servidor:
-        log.info("Reabriendo juego para servidor %s...", server_id)
-        dev.open_app()
-        time.sleep(14)
-
-    if server_id != "DEFAULT":
-        template_path = f"templates/label_{server_id.lower()}.png"
-        cambiador = ChangeServer(dev, vis)
-        if not cambiador.execute(template_path):
-            log.error("No se pudo cambiar al servidor %s", server_id)
-            dev.d.app_stop(APP_PACKAGE)
-            time.sleep(3)
-            return False
-
-    if not Startup(dev, vis).execute():
-        log.error("Startup falló para servidor %s", server_id)
-        dev.d.app_stop(APP_PACKAGE)
-        time.sleep(3)
-        return False
-
-    # Ejecutar DailyMissions (pasar account y db)
-    misiones = DailyMissions(dev, vis, cuenta, db)
-    misiones._server_id = None if server_id == "DEFAULT" else server_id
-    exito = misiones.execute(server_id=server_id)
-
-    # Cerrar juego después del servidor
-    dev.d.app_stop(APP_PACKAGE)
-    time.sleep(1)
-
-    return exito
 
 
 # ======================================================
@@ -92,7 +51,7 @@ def ejecutar_flujo_completo(db: Database, dev: Device, vis: Vision):
         if not intentar_login(cuenta, dev, vis):
             log.error("No se pudo entrar a %s tras 3 intentos.", cuenta.name)
             cuenta.mark_login_failed()
-            db.save()
+            db.commit()
             continue
 
         servidores = cuenta.servers if cuenta.servers else [{"server_id": "DEFAULT"}]
@@ -104,18 +63,32 @@ def ejecutar_flujo_completo(db: Database, dev: Device, vis: Vision):
                 log.info("Servidor %s ya completado hoy. Saltando.", server_id)
                 continue
 
-            exito = _procesar_servidor(
-                cuenta, db, dev, vis,
-                server_id, es_primer_servidor=(index == 0)
-            )
-            if not exito:
-                log.warning("Falló el procesamiento del servidor %s. Continuando con el siguiente.", server_id)
+            # Usamos el helper procesar_servidor que centralizamos antes
+            log.info("Preparando servidor %s...", server_id)
+            es_primer_servidor = (index == 0)
+
+            if not procesar_servidor(cuenta, db, dev, vis, server_id, es_primer_servidor):
+                log.warning("Falló la preparación del servidor %s. Continuando con el siguiente.", server_id)
                 continue
 
-            log.info("Servidor %s completado exitosamente.", server_id)
+            # Ejecutar DailyMissions
+            log.info("Ejecutando Misiones Diarias en servidor %s...", server_id)
+            misiones = DailyMissions(dev, vis, cuenta, db)
+            misiones._server_id = None if server_id == "DEFAULT" else server_id
 
-        db.save()
-        log.info("Cuenta %s procesada completamente.", cuenta.name)
+            exito = misiones.execute(server_id=server_id)
+
+            if exito:
+                log.info("Servidor %s completado exitosamente.", server_id)
+            else:
+                log.warning("Misiones incompletas/fallidas en servidor %s.", server_id)
+
+            # Cerrar juego después del servidor para limpiar estado antes del siguiente
+            dev.d.app_stop(APP_PACKAGE)
+            time.sleep(2)
+
+        db.commit()
+        log.info("Cuenta %s procesada.", cuenta.name)
         time.sleep(2)
 
     log.info("=" * 60)
@@ -127,11 +100,6 @@ def ejecutar_flujo_completo(db: Database, dev: Device, vis: Vision):
         ejecutar_raids_para_todas(db, dev, vis)
     else:
         log.info("No es horario de raids. Saltando raids automáticos.")
-
-    # [OPCIONAL] Si en el futuro quieres que los eventos también corran solos en el flujo diario,
-    # puedes descomentar estas líneas:
-    # log.info("Ejecutando sweeps de eventos automáticos...")
-    # ejecutar_eventos_para_todas(db, dev, vis)
 
 
 # ======================================================
@@ -210,11 +178,11 @@ def menu_interactivo():
             log.info("Ejecutando Defensa en la cuenta actual (sin persistencia).")
             Defense(dev, vis, account=None, db=None).execute()
 
-        elif opcion == "11":  # <--- NUEVO BLOQUE
+        elif opcion == "11":
             print("\n--- Sweep de Eventos Automáticos para todas las cuentas ---")
             ejecutar_eventos_para_todas(db, dev, vis, force=True)
 
-        elif opcion == "12":  # <--- ACTUALIZADO (era 11)
+        elif opcion == "12":
             log.info("Saliendo del bot.")
             break
         else:
