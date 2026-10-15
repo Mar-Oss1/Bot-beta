@@ -1,12 +1,13 @@
 import sys
 import os
 import time
+import cv2
 
-# Asegurar que Python reconozca las carpetas del proyecto
 current_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(os.path.dirname(current_dir))
+project_root = os.path.dirname(current_dir)
 sys.path.append(project_root)
 
+from core.config import PROJECT_ROOT
 from core.device import Device
 
 
@@ -19,26 +20,20 @@ def main():
         print("❌ No se pudo conectar al teléfono.")
         return
 
-    # Creamos una carpeta especial para estas capturas crudas
-    debug_dir = os.path.join(project_root, "screenshots", "debug_templates")
+    debug_dir = os.path.join(PROJECT_ROOT, "screenshots", "debug_templates")
     os.makedirs(debug_dir, exist_ok=True)
 
     print("\n⏳ Tienes 1 segundos para acomodar la pantalla del juego...")
-    for i in range(1, 0, -1):
-        print(f" {i}...")
-        time.sleep(1)
+    time.sleep(1)
 
-    # Generamos un nombre único con la hora actual para no sobreescribir
     nombre_archivo = f"captura_UI_{int(time.time())}.png"
     ruta_guardado = os.path.join(debug_dir, nombre_archivo)
 
-    # Tomar y guardar la captura
+    # Tomar y guardar la captura con OpenCV
     screen = dev.screenshot()
-    screen.save(ruta_guardado)
+    cv2.imwrite(ruta_guardado, screen)
 
-    print(f"\n✅ ¡Captura guardada con éxito!")
-    print(f"📂 Revisa la carpeta: screenshots/debug_templates/{nombre_archivo}")
-    print("🎨 Ahora abre esa imagen en Paint, haz tus recortes y guárdalos en 'templates/'.")
+    print(f"\n✅ ¡Captura guardada con éxito! -> {ruta_guardado}")
 
 
 if __name__ == "__main__":

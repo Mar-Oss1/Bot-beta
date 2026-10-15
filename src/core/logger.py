@@ -1,49 +1,61 @@
 """
 core/logger.py
-Configura el sistema de logging del bot.
-Llama setup_logger() UNA VEZ en main.py al arrancar.
-Después cada módulo hace: log = get_logger(__name__)
+Configura el sistema de logging del bot con colores ANSI en consola.
 """
 import logging
 import os
 from logging.handlers import TimedRotatingFileHandler
+from core.config import LOGS_DIR
 
-_LOGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
+
+class _ColorFormatter(logging.Formatter):
+    """Pinta los niveles en la terminal de Windows/PyCharm sin ensuciar el archivo .log."""
+    COLORS = {
+        logging.DEBUG: "\033[90m",     # Gris
+        logging.INFO: "\033[36m",      # Cyan
+        logging.WARNING: "\033[93m",   # Amarillo brillante
+        logging.ERROR: "\033[91m",     # Rojo brillante
+        logging.CRITICAL: "\033[41m",  # Fondo rojo
+    }
+    RESET = "\033[0m"
+
+    def format(self, record):
+        color = self.COLORS.get(record.levelno, self.RESET)
+        record_copy = logging.makeLogRecord(record.__dict__)
+        record_copy.levelname = f"{color}{record_copy.levelname:<8}{self.RESET}"
+        return super().format(record_copy)
 
 
 def setup_logger(level_console=logging.INFO, level_file=logging.DEBUG) -> logging.Logger:
-    """
-    Inicializa el logger raíz 'evertale'.
-    - Consola: INFO  (lo que ves corriendo el bot)
-    - Archivo : DEBUG (todo, incluyendo detalle de visión)
-    Rota a medianoche y guarda los últimos 14 días.
-    """
-    os.makedirs(_LOGS_DIR, exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    os.system("")  # Activa soporte ANSI nativo en consolas de Windows 10/11
 
     logger = logging.getLogger("evertale")
     logger.setLevel(logging.DEBUG)
 
     if logger.handlers:
-        return logger  # Evita agregar handlers duplicados si se llama dos veces
+        return logger
 
-    fmt = logging.Formatter(
+    fmt_plain = logging.Formatter(
         "%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
+    fmt_color = _ColorFormatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S"  # En consola solo hora:min:seg para ganar espacio
+    )
 
-    # Consola
     ch = logging.StreamHandler()
     ch.setLevel(level_console)
-    ch.setFormatter(fmt)
+    ch.setFormatter(fmt_color)
     logger.addHandler(ch)
 
-    # Archivo rotativo diario
-    log_path = os.path.join(_LOGS_DIR, "bot_execution.log")
+    log_path = os.path.join(LOGS_DIR, "bot_execution.log")
     fh = TimedRotatingFileHandler(
         log_path, when="midnight", backupCount=14, encoding="utf-8"
     )
     fh.setLevel(level_file)
-    fh.setFormatter(fmt)
+    fh.setFormatter(fmt_plain)
     logger.addHandler(fh)
 
     logger.info("=" * 60)
@@ -53,8 +65,4 @@ def setup_logger(level_console=logging.INFO, level_file=logging.DEBUG) -> loggin
 
 
 def get_logger(name: str) -> logging.Logger:
-    """
-    Retorna un logger hijo del logger raíz 'evertale'.
-    Uso: log = get_logger(__name__)
-    """
     return logging.getLogger(f"evertale.{name}")

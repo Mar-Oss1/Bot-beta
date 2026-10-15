@@ -12,137 +12,94 @@ class ChangeServer:
         self.device = device
         self.vision = vision
 
-    def execute(self, server_label_template):
+    def execute(self, server_label_template: str) -> bool:
         log.info("\n[→] Iniciando cambio/verificación de servidor: %s", server_label_template)
 
-        # 1. Buscar botón de Servidor en la pantalla de título
         pos_btn_server = self.vision.wait_for_template(
             self.device.screenshot,
             "templates/btn_server_title.png",
             timeout=10,
             threshold=0.7,
-            interval=0.5
+            interval=0.25,
+            zona="MITAD_INFERIOR"
         )
         if not pos_btn_server:
             log.error("❌ No encontré el botón de Servidor.")
             return False
 
-        log.info("[>] Abriendo menú de servidores...")
         self.device.tap(pos_btn_server[0], pos_btn_server[1])
 
-        # 2. Esperar a que cargue el menú y aparezca la etiqueta del servidor
-        log.info("[⏳] Esperando menú de servidores...")
         pos_label = self.vision.wait_for_template(
             self.device.screenshot,
             server_label_template,
             timeout=8,
             threshold=0.8,
-            interval=0.4
+            interval=0.2,
+            zona="COMPLETA"
         )
         if not pos_label:
             log.error("❌ No encontré la etiqueta del servidor destino.")
             self._salir_menu_servidores()
             return False
 
-        log.info("[>] Servidor encontrado. Tocando...")
         self.device.tap(pos_label[0], pos_label[1])
 
-        # 3. Primer OK de confirmación (aparece tanto si hay cambio como si no)
         pos_ok = self.vision.wait_for_template(
             self.device.screenshot,
             "templates/btn_ok_restore.png",
-            timeout=4,
+            timeout=3.5,
             threshold=0.75,
-            interval=0.3
+            interval=0.2,
+            zona="CENTRO"
         )
         if pos_ok:
-            log.info("[>] 'OK' de confirmación encontrado. Presionando...")
             self.device.tap(pos_ok[0], pos_ok[1])
-            # Pausa para que un cambio REAL alcance a iniciar el reinicio
-            time.sleep(2)
-        else:
-            log.info("[i] No apareció diálogo de confirmación.")
+            time.sleep(1.0)
 
-        # 4. Bucle final robusto: llegar a la pantalla de título sí o sí
-        return self._llegar_a_titulo(timeout=45)
+        return self._llegar_a_titulo(timeout=35)
 
-    # ═══════════════════════════════════════════════════════════
-    # BUCLE FINAL: confirma / sale del menú / espera el título
-    # ═══════════════════════════════════════════════════════════
-    def _llegar_a_titulo(self, timeout=20) -> bool:
-        """
-        Cubre los 3 escenarios posibles:
-        a) Cambio REAL de servidor → (2º OK) → reinicio → título
-        b) YA en el servidor (con diálogo) → OK te devuelve al menú
-           → back visible → lo presionamos → título   ← TU CASO DEL LOG
-        c) YA en el servidor (sin diálogo) → back directo → título
-        """
+    def _llegar_a_titulo(self, timeout: float = 20) -> bool:
         log.info("[⏳] Esperando pantalla de título...")
-        inicio = time.time()
-        oks = 0
-        backs = 0
+        inicio = time.monotonic()
 
-        while time.time() - inicio < timeout:
-            screen = self.device.screenshot()
+        while time.monotonic() - inicio < timeout:
+            screen_gray = self.vision.to_gray(self.device.screenshot())
 
-            # ✅ ÉXITO: ya estamos en la pantalla de título
-            if self.vision.find_template(screen, "templates/pantalla_titulo.png", threshold=0.8):
+            # ✅ ÉXITO: START GAME visible en MITAD_INFERIOR
+            if self.vision.find_template(
+                screen_gray, "templates/pantalla_titulo.png", threshold=0.8, zona="MITAD_INFERIOR"
+            ):
                 log.info("[✓] Pantalla de título detectada. Servidor listo.")
                 return True
 
-            # 🟠 Quedó un diálogo de confirmación pendiente → OK
             pos_ok = self.vision.find_template(
-                screen, "templates/btn_ok_restore.png", threshold=0.75
+                screen_gray, "templates/btn_ok_restore.png", threshold=0.75, zona="CENTRO"
             )
             if pos_ok:
-                oks += 1
-                log.info("[>] 'OK' #%d encontrado. Presionando...", oks)
                 self.device.tap(pos_ok[0], pos_ok[1])
-                time.sleep(1)
+                time.sleep(0.5)
                 continue
 
-            # 🔙 Atrapados en el menú de servidores → back (tu idea)
             pos_back = self.vision.find_template(
-                screen, "templates/btn_back_login.png", threshold=0.8
+                screen_gray, "templates/btn_back_login.png", threshold=0.8, zona="MITAD_INFERIOR"
             )
             if pos_back:
-                backs += 1
-                log.info("[←] Aún en menú de servidores. Back #%d...", backs)
                 self.device.tap(pos_back[0], pos_back[1])
-                time.sleep(1.5)
+                time.sleep(0.8)
                 continue
 
-            # Pantalla de carga u otra: esperar
-            time.sleep(1)
+            time.sleep(0.4)
 
         log.warning("[!] Timeout (%ds) esperando pantalla de título. Continuando...", timeout)
         return True
 
     def _salir_menu_servidores(self):
-        """Cierra el menú de servidores si algo salió mal."""
         screen = self.device.screenshot()
         pos_back = self.vision.find_template(
-            screen, "templates/btn_back_login.png", threshold=0.75
+            screen, "templates/btn_back_login.png", threshold=0.75, zona="MITAD_INFERIOR"
         )
         if pos_back:
             self.device.tap(pos_back[0], pos_back[1])
         else:
             self.device.d.press("back")
-        time.sleep(1)
-
-
-if __name__ == "__main__":
-    import sys
-    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from core.device import Device
-    from core.vision import Vision
-
-    print("=== PRUEBA DE CAMBIO DE SERVIDOR ===")
-    dev = Device()
-    vis = Vision()
-    if dev.connect():
-        print("[✓] Dispositivo conectado.")
-        cambiador = ChangeServer(dev, vis)
-        cambiador.execute("templates/label_sa-9.png")
-    else:
-        print("❌ Error al conectar.")
+        time.sleep(0.6)

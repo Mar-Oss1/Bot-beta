@@ -1,13 +1,6 @@
-"""
-core/device.py
-Abstracción del dispositivo ADB.
-Cambios:
-  - screenshot() retorna PIL en memoria (sin disco)
-  - screenshot_to_file() para cuando SÍ se necesita archivo
-  - OCR helper para evitar escritura temporal
-"""
 import time
 import tempfile
+import numpy as np
 import uiautomator2 as u2
 from PIL import Image
 
@@ -52,11 +45,10 @@ class Device:
         log.critical("💀 No se pudo reconectar tras %d intentos.", _MAX_RECONNECT)
         return False
 
-    def screenshot(self) -> Image.Image:
-        """Screenshot en memoria (PIL)."""
+    def screenshot(self, format: str = "opencv") -> np.ndarray | Image.Image:
         for intento in range(_MAX_RECONNECT):
             try:
-                return self.d.screenshot(format="pillow")
+                return self.d.screenshot(format=format)
             except Exception as e:
                 log.warning("Error screenshot (intento %d): %s", intento + 1, e)
                 if not self._reconnect():
@@ -64,9 +56,10 @@ class Device:
         raise RuntimeError("No se pudo tomar screenshot.")
 
     def screenshot_to_file(self, path: str | None = None) -> str:
-        """Guarda screenshot a archivo. Si path=None usa temp."""
         if path is None:
-            path = tempfile.mktemp(suffix=".png")
+            fd, path = tempfile.mkstemp(suffix=".png")
+            import os
+            os.close(fd)
         for intento in range(_MAX_RECONNECT):
             try:
                 self.d.screenshot(path)

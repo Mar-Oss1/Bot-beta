@@ -16,57 +16,48 @@ def intentar_login(cuenta, dev, vis, max_reintentos=3):
         log.info("Abriendo Evertale - intento %d/%d...", intento, max_reintentos)
         dev.open_app()
 
-        # ═══ FIX: En vez de sleep(14) fijo, esperar la nube visualmente ═══
+        # Buscamos el botón de la nube enfocándonos en la esquina/mitad correspondiente
         pos_nube = vis.wait_for_template(
             dev.screenshot,
             "templates/btn_nube.png",
-            timeout=20,  # máximo 20s (por si el device es lento)
+            timeout=20,
             threshold=0.75,
-            interval=0.5  # poll cada 0.5s
+            interval=0.2,
+            zona="ESQUINA_INF_IZQ"
         )
         if not pos_nube:
             log.warning("No apareció la nube. Reintentando...")
             dev.d.app_stop(APP_PACKAGE)
-            time.sleep(2)
+            time.sleep(0.5)
             continue
 
         if not cuenta.serial:
             log.info("Sin serial configurado. Entrando directo.")
             return True
 
-        exito = ChangeAccount(dev, vis).execute(cuenta.serial)
+        exito = ChangeAccount(dev, vis).execute(cuenta.serial, pos_nube_inicial=pos_nube)
         if exito:
-            # ═══ FIX: En vez de sleep(12) fijo, esperar pantalla de título ═══
-            log.info("Inyección exitosa. Esperando pantalla de título...")
-            pos_titulo = vis.wait_for_template(
-                dev.screenshot,
-                "templates/pantalla_titulo.png",
-                timeout=25,
-                threshold=0.8,
-                interval=0.8
-            )
-            if pos_titulo:
-                log.info("Pantalla de título detectada.")
+            log.info("Inyección exitosa y pantalla de título lista.")
             return True
 
         log.warning("Fallo el cambio. Limpiando y reiniciando...")
         dev.d.app_stop(APP_PACKAGE)
-        time.sleep(2)  # ← reducido de 3 a 2
+        time.sleep(0.5)
 
     return False
 
 
-def procesar_servidor(cuenta, db, dev, vis, server_id, es_primer_servidor):
-    if not es_primer_servidor:
+def procesar_servidor(cuenta, db, dev, vis, server_id, juego_ya_abierto):
+    if not juego_ya_abierto:
         log.info("Reabriendo juego para servidor %s...", server_id)
         dev.open_app()
-        # ═══ FIX: Esperar visual en vez de sleep(14) ═══
         vis.wait_for_template(
             dev.screenshot,
-            "templates/btn_server_title.png",  # o btn_nube si aplica
+            "templates/btn_server_title.png",
             timeout=20,
             threshold=0.75,
-            interval=0.5
+            interval=0.2,
+            zona="MITAD_INFERIOR"
         )
 
     if server_id != "DEFAULT":
@@ -83,10 +74,7 @@ def procesar_servidor(cuenta, db, dev, vis, server_id, es_primer_servidor):
 
 
 def ejecutar_tarea_en_cuentas(task_class, cuentas, dev, vis, db, nombre_tarea="Tarea"):
-    """
-    Despachador genérico para ejecutar una tarea (clase) en una lista de cuentas.
-    Elimina el boilerplate duplicado en los ejecutores por lotes (*_auto.py).
-    """
+    """Despachador genérico optimizado sin esperas muertas."""
     if not cuentas:
         log.info("No se proporcionaron cuentas para %s.", nombre_tarea)
         return
@@ -98,29 +86,27 @@ def ejecutar_tarea_en_cuentas(task_class, cuentas, dev, vis, db, nombre_tarea="T
         log.info("PROCESANDO %s: %s (Prioridad: %d)", nombre_tarea.upper(), cuenta.name, cuenta.priority)
         log.info("=" * 50)
 
-        # 1. Login
         if not intentar_login(cuenta, dev, vis):
             log.error("No se pudo entrar a %s tras 3 intentos.", cuenta.name)
             cuenta.mark_login_failed()
             db.commit()
             continue
 
-        # 2. Servidores
+        juego_abierto = True
         servidores = cuenta.servers if cuenta.servers else [{"server_id": "DEFAULT"}]
-        for index, servidor in enumerate(servidores):
+
+        for servidor in servidores:
             server_id = servidor.get("server_id", "DEFAULT")
             log.info("Procesando %s en servidor %s", nombre_tarea, server_id)
 
-            es_primer = (index == 0)
-            if not procesar_servidor(cuenta, db, dev, vis, server_id, es_primer):
+            if not procesar_servidor(cuenta, db, dev, vis, server_id, juego_abierto):
                 log.error("Fallo al preparar servidor %s", server_id)
+                dev.d.app_stop(APP_PACKAGE)
+                time.sleep(0.5)
+                juego_abierto = False
                 continue
 
-            # 3. Instanciar y Ejecutar Tarea
-            # Instanciamos la clase de la tarea dinámicamente
             tarea_instance = task_class(dev, vis, cuenta, db)
-
-            # Si la clase requiere el server_id como atributo (ej: EventSweep, Raid)
             if hasattr(tarea_instance, '_sid'):
                 tarea_instance._sid = None if server_id == "DEFAULT" else server_id
 
@@ -133,9 +119,9 @@ def ejecutar_tarea_en_cuentas(task_class, cuentas, dev, vis, db, nombre_tarea="T
             except Exception as e:
                 log.error("Error crítico ejecutando %s en servidor %s: %s", nombre_tarea, server_id, e)
 
-            # Cerrar juego después de cada servidor para preparar el siguiente
             dev.d.app_stop(APP_PACKAGE)
-            time.sleep(3)
+            time.sleep(0.5)
+            juego_abierto = False
 
         log.info("Cuenta %s procesada.", cuenta.name)
         db.commit()

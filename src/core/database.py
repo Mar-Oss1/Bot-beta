@@ -1,9 +1,9 @@
 import json
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+from core.config import ACCOUNTS_FILE, PROGRESS_FILE
 
-ACCOUNTS_FILE = "accounts/accounts.json"
-PROGRESS_FILE = "accounts/progress.json"
+SUBMODULOS_DIARIOS = ["tower", "alliance", "arena", "defense", "summons", "mana", "rewards"]
 
 
 class Account:
@@ -19,6 +19,14 @@ class Account:
         p = progress_data or {}
         self.progress = p.get("days", {})
         self.last_run = p.get("last_run")
+        self._limpiar_historial_antiguo(dias_max=14)
+
+    def _limpiar_historial_antiguo(self, dias_max: int = 14):
+        """Evita que progress.json crezca infinitamente borrando fechas de hace más de 14 días."""
+        limite = str(date.today() - timedelta(days=dias_max))
+        fechas_viejas = [d for d in self.progress.keys() if d < limite]
+        for d in fechas_viejas:
+            del self.progress[d]
 
     def to_config(self) -> dict:
         return {
@@ -37,21 +45,21 @@ class Account:
             "days": self.progress,
         }
 
-    def get_today_progress(self, server_id=None):
+    def get_today_progress(self, server_id=None) -> dict:
         today = str(date.today())
         day_data = self.progress.get(today, {})
         default_tasks = {"daily_missions": False, "login_bonus": False}
 
-        if server_id:
+        if server_id and server_id != "DEFAULT":
             return day_data.get(server_id, default_tasks)
         return day_data if day_data else default_tasks
 
-    def mark_task_done(self, task_name, server_id=None):
+    def mark_task_done(self, task_name: str, server_id=None):
         today = str(date.today())
         if today not in self.progress:
             self.progress[today] = {}
 
-        if server_id:
+        if server_id and server_id != "DEFAULT":
             if server_id not in self.progress[today]:
                 self.progress[today][server_id] = {}
             self.progress[today][server_id][task_name] = True
@@ -60,37 +68,44 @@ class Account:
 
         self.last_run = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    def is_task_done(self, task_name, server_id=None):
+    def is_task_done(self, task_name: str, server_id=None) -> bool:
         return self.get_today_progress(server_id).get(task_name, False)
 
-    def pending_tasks(self, server_id=None):
-        all_tasks = ["login_bonus", "daily_missions"]
+    def pending_tasks(self, server_id=None) -> list[str]:
         if server_id:
             tp = self.get_today_progress(server_id)
-            return [t for t in all_tasks if not tp.get(t, False)]
+            if tp.get("daily_missions", False):
+                return []
+            return [m for m in SUBMODULOS_DIARIOS if not tp.get(m, False)]
 
         if self.servers:
             pending = []
             for s in self.servers:
                 sid = s["server_id"]
                 tp = self.get_today_progress(sid)
-                pending.extend([f"{t} ({sid})" for t in all_tasks if not tp.get(t, False)])
+                if not tp.get("daily_missions", False):
+                    faltan = [m for m in SUBMODULOS_DIARIOS if not tp.get(m, False)]
+                    if faltan:
+                        pending.append(f"{sid}: {len(faltan)} mód.")
             return pending
 
         tp = self.get_today_progress()
-        return [t for t in all_tasks if not tp.get(t, False)]
+        if tp.get("daily_missions", False):
+            return []
+        return [m for m in SUBMODULOS_DIARIOS if not tp.get(m, False)]
 
-    def completion_percent(self):
-        all_tasks = ["login_bonus", "daily_missions"]
-        if self.servers:
-            total = len(all_tasks) * len(self.servers)
-            done = sum(sum(1 for t in all_tasks if self.get_today_progress(s["server_id"]).get(t, False)) for s in
-                       self.servers)
-            return int((done / total) * 100) if total > 0 else 0
-
-        tp = self.get_today_progress()
-        done = sum(1 for t in all_tasks if tp.get(t, False))
-        return int((done / len(all_tasks)) * 100)
+    def completion_percent(self) -> int:
+        """Calcula el % real basado en los 7 submódulos diarios por cada servidor."""
+        servidores = [s["server_id"] for s in self.servers] if self.servers else [None]
+        total = len(SUBMODULOS_DIARIOS) * len(servidores)
+        done = 0
+        for sid in servidores:
+            tp = self.get_today_progress(sid)
+            if tp.get("daily_missions", False):
+                done += len(SUBMODULOS_DIARIOS)
+            else:
+                done += sum(1 for m in SUBMODULOS_DIARIOS if tp.get(m, False))
+        return int((done / total) * 100) if total > 0 else 0
 
     def mark_login_failed(self):
         today = str(date.today())
@@ -100,7 +115,7 @@ class Account:
         self.progress[today]["login_fail_count"] = self.progress[today].get("login_fail_count", 0) + 1
         self.last_run = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    def has_failed_too_many_times(self, limit=2):
+    def has_failed_too_many_times(self, limit: int = 2) -> bool:
         today = str(date.today())
         return self.progress.get(today, {}).get("login_fail_count", 0) >= limit
 
@@ -110,7 +125,7 @@ class Account:
                 return s
         return None
 
-    def is_vip_server(self, server_id):
+    def is_vip_server(self, server_id) -> bool:
         cfg = self.get_server_config(server_id)
         return cfg.get("vip", False) if cfg else False
 
@@ -118,17 +133,17 @@ class Account:
 class Database:
     def __init__(self):
         self.accounts: list[Account] = []
-        self._cambios_pendientes = False  # <--- DIRTY FLAG
+        self._cambios_pendientes = False
         self._ensure_files()
         self.load()
 
     def _ensure_files(self):
         os.makedirs(os.path.dirname(ACCOUNTS_FILE), exist_ok=True)
         if not os.path.exists(ACCOUNTS_FILE):
-            with open(ACCOUNTS_FILE, "w") as f:
+            with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
                 json.dump({"accounts": []}, f, indent=2)
         if not os.path.exists(PROGRESS_FILE):
-            with open(PROGRESS_FILE, "w") as f:
+            with open(PROGRESS_FILE, "w", encoding="utf-8") as f:
                 json.dump({"progress": {}}, f, indent=2)
 
     def load(self):
@@ -152,14 +167,11 @@ class Database:
         self._write_safe(PROGRESS_FILE, data)
 
     def save(self):
-        """Trampa para los módulos: levanta la bandera pero NO escribe en disco."""
         self._cambios_pendientes = True
 
     def commit(self):
-        """Única función que realmente escribe en memoria física. Llama a esto al final de la cuenta."""
         if not self._cambios_pendientes:
-            return  # Ahorra latencia si nada cambió
-
+            return
         self.save_config()
         self.save_progress()
         self._cambios_pendientes = False
@@ -179,13 +191,14 @@ class Database:
         }, progress_data={})
         self.accounts.append(account)
         self.save()
-        self.commit()  # Al crear cuenta nueva sí forzamos guardado inmediato
+        self.commit()
         print(f"✅ Cuenta agregada: {name}")
         return account
 
     def get_account(self, account_id) -> Account | None:
         for a in self.accounts:
-            if a.id == account_id: return a
+            if a.id == account_id:
+                return a
         return None
 
     def get_pending_accounts(self) -> list[Account]:
@@ -196,16 +209,19 @@ class Database:
         return sorted(pending, key=lambda a: a.priority)
 
     def print_status(self):
-        print("\n" + "=" * 70)
-        print(f"{'CUENTA':<25} {'%':>4}  {'PENDIENTE'}")
-        print("=" * 70)
-        for a in self.accounts:
+        print("\n" + "=" * 75)
+        print(f"{'PRI':<4} {'CUENTA':<22} {'%':>4}  {'PROGRESO':<10}  {'PENDIENTE / ESTADO'}")
+        print("=" * 75)
+        for a in sorted(self.accounts, key=lambda x: x.priority):
+            if not a.enabled:
+                print(f"{a.priority:<4} {a.name:<22} {'--':>4}  {'░░░░░░░░░░'}  ⏸️ Deshabilitada")
+                continue
             pct = a.completion_percent()
             pending_str = ", ".join(a.pending_tasks())
-            if len(pending_str) > 35:
-                pending_str = pending_str[:32] + "..."
+            if len(pending_str) > 34:
+                pending_str = pending_str[:31] + "..."
             elif not pending_str:
                 pending_str = "Todo completo ✅"
             bar = "█" * (pct // 10) + "░" * (10 - pct // 10)
-            print(f"{a.name:<25} {pct:>3}%  {bar}  {pending_str}")
-        print("=" * 70 + "\n")
+            print(f"{a.priority:<4} {a.name:<22} {pct:>3}%  {bar}  {pending_str}")
+        print("=" * 75)

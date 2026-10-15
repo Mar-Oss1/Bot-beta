@@ -37,21 +37,16 @@ class DailyMissions(BaseTask):
             self.db.save()
         log.debug("Módulo '%s' guardado [server: %s]", modulo, self._sid or "DEFAULT")
 
-    # ── OCR de gemas (sin escritura a disco) ──
+        # ── OCR de gemas (Directo con to_gray y Slicing en RAM) ──
+
     def leer_gemas(self) -> int:
         log.info("Escaneando contador de gemas...")
         try:
             X, Y, W, H = 1380, 15, 180, 50
-            img_pil = self.device.screenshot()
-            img = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
+            screen_gray = self.vision.to_gray(self.device.screenshot())
 
-            if img is None:
-                log.warning("No se pudo obtener captura para OCR.")
-                return 0
-
-            roi = img[Y:Y + H, X:X + W]
-            gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-            gray = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+            roi = screen_gray[Y:Y + H, X:X + W]
+            gray = cv2.resize(roi, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
             _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
             texto = pytesseract.image_to_string(
@@ -86,93 +81,107 @@ class DailyMissions(BaseTask):
             time.sleep(4)
 
     def _limpiar_invocacion(self):
-        for _ in range(10):
+        recompensa_vista = False
+        for _ in range(3):
             screen = self.device.screenshot()
-            result = self.vision.find_any(screen, [
-                "templates/btn_skip_ok.png",
-                "templates/rewards.png"
-            ], threshold=0.75)
+            result = self.vision.find_any(
+                screen,
+                ["templates/btn_skip_ok.png", "templates/rewards.png"],
+                threshold=0.75,
+                zona="COMPLETA"
+            )
 
             if result:
                 template, x, y = result
                 if "ok" in template.lower():
                     log.info("Botón OK detectado en invocación.")
                     self.device.tap(x, y)
-                    time.sleep(1.5)
-                    if not self.vision.find_template(
-                            self.device.screenshot(), "templates/btn_draw_ok.png", threshold=0.75
-                    ):
-                        break
+                    time.sleep(0.8)
+                    return
                 else:
-                    log.debug("Ventana de rewards detectada. Limpiando...")
+                    recompensa_vista = True
                     self.device.tap(100, 100)
-                    time.sleep(1)
+                    time.sleep(0.6)
             else:
-                time.sleep(0.8)
+                if recompensa_vista:
+                    return
+                self.device.tap(200, 200)
+                time.sleep(0.4)
 
-    # ── Gestión de combates con Polling Activo ──
     def handle_battle_sequence(self, timeout=20) -> str:
         log.info("Esperando resolución del combate...")
-        inicio = time.time()
+        inicio = time.monotonic()
 
-        while time.time() - inicio < timeout:
+        while time.monotonic() - inicio < timeout:
             screen = self.device.screenshot()
 
-            resultado = self.vision.find_any(screen, [
-                "templates/Draw.png",
-                "templates/victory_banner.png",
-                "templates/defeat_banner.png",
-                "templates/btn_battle_skip.png",
-                "templates/btn_battle_speed.png"
-            ], threshold=0.85)
+            # 1. En tu captura de batalla, 'x1' y 'Skip' están en ESQUINA_SUP_DER (y: 0-300, x: 1400-2400)
+            btn_rapido = self.vision.find_any(
+                screen,
+                ["templates/btn_battle_skip.png", "templates/btn_battle_speed.png"],
+                threshold=0.82,
+                zona="ESQUINA_SUP_DER"
+            )
+            if btn_rapido:
+                _, x, y = btn_rapido
+                self.device.tap(x, y)
+                time.sleep(0.35)
+                continue
 
+            # 2. Banners de resultado en CENTRO
+            resultado = self.vision.find_any(
+                screen,
+                ["templates/Draw.png", "templates/victory_banner.png", "templates/defeat_banner.png"],
+                threshold=0.85,
+                zona="CENTRO"
+            )
             if resultado:
                 template, x, y = resultado
-
                 if "Draw" in template:
                     log.info("EMPATE detectado. Cerrando...")
-                    pos_ok = self.vision.find_template(screen, "templates/btn_draw_ok.png", threshold=0.85)
+                    pos_ok = self.vision.find_template(
+                        screen, "templates/btn_draw_ok.png", threshold=0.85, zona="CENTRO"
+                    )
                     tap_x, tap_y = pos_ok if pos_ok else (x, y + 150)
                     self.device.tap(tap_x, tap_y)
-                    time.sleep(2)
+                    time.sleep(1.5)
                     self.clear_loot_windows()
                     return "draw"
-
-                elif "victory" in template or "defeat" in template:
+                else:
                     log.info("Combate finalizado. Limpiando recompensas...")
+                    time.sleep(1)
                     self.clear_loot_windows()
+                    time.sleep(1)
                     return "finished"
 
-                elif "skip" in template or "speed" in template:
-                    log.debug("Botón de batalla visible. Acelerando/Saltando...")
-                    self.device.tap(x, y)
-                    time.sleep(1)
-                    continue
-
-            time.sleep(0.5)
+            time.sleep(0.2)
 
         log.warning("Timeout (%ds) esperando resultado de batalla.", timeout)
         self.clear_loot_windows()
         return "finished"
 
-    def check_and_recover_mana(self) -> bool:
-        pos_insuficiente = self.wait_for_template(
-            "templates/mana_insuficiente.png", timeout=3, threshold=0.85
+    def check_and_recover_mana(self, screen=None) -> bool:
+        """Revisión instantánea (0s de espera si sí hay maná)."""
+        if screen is None:
+            screen = self.device.screenshot()
+
+        pos_insuficiente = self.vision.find_template(
+            screen, "templates/mana_insuficiente.png", threshold=0.85, zona="CENTRO"
         )
         if not pos_insuficiente:
             return False
 
         log.info("Aviso de maná detectado. Recuperando...")
-        screen = self.device.screenshot()
-        pos_ok = self.vision.find_template(screen, "templates/btn_ok_restore.png", threshold=0.85)
+        pos_ok = self.vision.find_template(screen, "templates/btn_ok_restore.png", threshold=0.85, zona="CENTRO")
         self.device.tap((pos_ok or pos_insuficiente)[0], (pos_ok or pos_insuficiente)[1])
-        time.sleep(2)
+        time.sleep(1.0)
 
-        screen2 = self.device.screenshot()
-        pos_cb = self.vision.find_template(screen2, "templates/checkbox_mana.png", threshold=0.85)
+        pos_cb = self.vision.find_template(
+            self.device.screenshot(), "templates/checkbox_mana.png", threshold=0.85, zona="CENTRO"
+        )
         if pos_cb:
             self.device.tap(pos_cb[0], pos_cb[1])
-            time.sleep(1.5)
+            time.sleep(0.6)
 
         self.cerrar_ventana()
         return True
@@ -290,13 +299,12 @@ class DailyMissions(BaseTask):
         self.limpiar_banners_home()
         return tiradas > 0
 
-    def _detectar_ssr(self) -> bool:
-        screen = self.device.screenshot()
-        img = cv2.cvtColor(np.array(screen), cv2.COLOR_RGB2BGR)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    def _detectar_ssr(self, screen=None) -> bool:
+        if screen is None:
+            screen = self.device.screenshot()
+        gray = self.vision.to_gray(screen)
         brillo_promedio = float(np.mean(gray))
-        UMBRAL_SSR = 10.0
-        es_ssr = brillo_promedio < UMBRAL_SSR
+        es_ssr = brillo_promedio < 10.0
 
         if es_ssr:
             log.info("SSR detectado! Brillo: %.1f", brillo_promedio)
@@ -387,66 +395,81 @@ class DailyMissions(BaseTask):
 
     def do_tower_of_trials(self) -> bool:
         log.info("Módulo: Tower of Trials")
-        pos_tot = self.vision.find_template(self.device.screenshot(), "templates/btn_tot_home.png", threshold=0.85)
+        pos_tot = self.vision.find_template(
+            self.device.screenshot(), "templates/btn_tot_home.png",
+            threshold=0.85, zona="MITAD_DERECHA"
+        )
         if not pos_tot:
             return False
 
         self.device.tap(pos_tot[0], pos_tot[1])
-        self.wait_for_screen_stable(timeout=5, interval=0.5)
+        self.wait_for_screen_stable(timeout=5, interval=0.35)
 
-        pos_chest = self.vision.find_template(self.device.screenshot(), "templates/btn_tot_chest.png", threshold=0.8)
+        screen_tot = self.device.screenshot()
+        pos_chest = self.vision.find_template(
+            screen_tot, "templates/btn_tot_chest.png", threshold=0.8, zona="CENTRO"
+        )
         if pos_chest:
             self.device.tap(pos_chest[0], pos_chest[1] - 15)
-            time.sleep(1.5)
+            time.sleep(1.0)
             self.clear_loot_windows()
+            screen_tot = self.device.screenshot()
 
         fast_forwards_completados = exploraciones_completadas = 0
-
-        pos_ff = self.vision.find_template(self.device.screenshot(), "templates/btn_fast_forward_menu.png",
-                                           threshold=0.85)
+        time.sleep(1.0)
+        pos_ff = self.vision.find_template(
+            screen_tot, "templates/btn_fast_forward_menu.png", threshold=0.85, zona="MITAD_INFERIOR"
+        )
         if pos_ff:
             self.device.tap(pos_ff[0], pos_ff[1])
-            self.wait_for_screen_stable(timeout=5, interval=0.5)
+            self.wait_for_screen_stable(timeout=4, interval=0.35)
             intentos_flecha = 0
 
             while fast_forwards_completados < 2 and intentos_flecha < 3:
-                pos_green = self.wait_for_template("templates/btn_ff_green.png", timeout=2, threshold=0.85,
-                                                   interval=0.3)
+                pos_green = self.wait_for_template(
+                    "templates/btn_ff_green.png", timeout=2, threshold=0.85, interval=0.2, zona="CENTRO"
+                )
                 if pos_green:
                     self.device.tap(pos_green[0], pos_green[1])
-                    time.sleep(2.5)
+                    time.sleep(1.8)
                     self.device.tap(100, 100)
-                    time.sleep(0.8)
+                    time.sleep(0.5)
                     fast_forwards_completados += 1
                     intentos_flecha = 0
-                    self.wait_for_screen_stable(timeout=3, interval=0.5)
+                    self.wait_for_screen_stable(timeout=3, interval=0.35)
                     continue
 
-                pos_arrow = self.vision.find_template(self.device.screenshot(), "templates/btn_ff_arrow.png",
-                                                      threshold=0.85)
+                pos_arrow = self.vision.find_template(
+                    self.device.screenshot(), "templates/btn_ff_arrow.png", threshold=0.85, zona="CENTRO"
+                )
                 if pos_arrow:
                     self.device.tap(pos_arrow[0], pos_arrow[1])
-                    time.sleep(1.2)
+                    time.sleep(0.8)
                     intentos_flecha += 1
                     continue
                 break
 
             self.cerrar_ventana()
-            time.sleep(0.8)
+            time.sleep(0.5)
 
         for _ in range(3):
             self.clear_loot_windows()
-            pos_exp = self.vision.find_template(self.device.screenshot(), "templates/btn_explore.png", threshold=0.85)
+            pos_exp = self.vision.find_template(
+                self.device.screenshot(), "templates/btn_explore.png",
+                threshold=0.85, zona="ESQUINA_INF_IZQ"
+            )
             if pos_exp:
                 self.device.tap(pos_exp[0], pos_exp[1])
-                time.sleep(2.5)
+                time.sleep(1.8)
                 self.clear_loot_windows()
                 exploraciones_completadas += 1
             else:
                 break
 
-        pos_boss = self.vision.find_template(self.device.screenshot(), "templates/btn_challenge_boss.png",
-                                             threshold=0.85)
+        pos_boss = self.vision.find_template(
+            self.device.screenshot(), "templates/btn_challenge_boss.png",
+            threshold=0.85, zona="ESQUINA_INF_DER"
+        )
         boss_completado = False
         if pos_boss:
             log.info("Desafiando al Boss...")
@@ -455,39 +478,49 @@ class DailyMissions(BaseTask):
             boss_completado = True
 
         self.return_to_home()
-        self.limpiar_banners_home()
-
         return fast_forwards_completados >= 1 and exploraciones_completadas >= 2 and boss_completado
 
     def do_alliance_quest(self) -> bool:
         log.info("Módulo: Misiones de Gremio")
 
-        pos_bw = self.vision.find_template(self.device.screenshot(), "templates/btn_battalion_warfare.png",
-                                           threshold=0.85)
-        if not pos_bw: return False
+        # En Home, Battalion Warfare está en MITAD_DERECHA
+        pos_bw = self.vision.find_template(
+            self.device.screenshot(), "templates/btn_battalion_warfare.png",
+            threshold=0.85, zona="MITAD_DERECHA"
+        )
+        if not pos_bw:
+            return False
 
         self.device.tap(pos_bw[0], pos_bw[1])
-        self.wait_for_screen_stable(timeout=4, interval=0.5)
+        self.wait_for_screen_stable(timeout=4, interval=0.35)
 
-        pos_aq = self.vision.find_template(self.device.screenshot(), "templates/btn_alliance_quest.png", threshold=0.85)
+        # En el mapa de guerra (Captura 5), Alliance Quest está en ESQUINA_INF_IZQ
+        pos_aq = self.vision.find_template(
+            self.device.screenshot(), "templates/btn_alliance_quest.png",
+            threshold=0.85, zona="ESQUINA_INF_IZQ"
+        )
         if not pos_aq:
             self.cerrar_ventana()
             self.return_to_home()
             return False
 
         self.device.tap(pos_aq[0], pos_aq[1])
-        self.wait_for_screen_stable(timeout=6, interval=0.5)
+        self.wait_for_screen_stable(timeout=5, interval=0.35)
 
         if self.account and self.account.is_vip_server(self._sid):
-            pos_ch = self.wait_for_template("templates/btn_challenge_boss_3.png", timeout=6, threshold=0.85)
-            if pos_ch:
-                self.device.tap(pos_ch[0], pos_ch[1])
-                self.wait_for_screen_stable(timeout=8, interval=0.5)
+            pos_vip = self.wait_for_template(
+                "templates/btn_challenge_boss_3.png", timeout=4, threshold=0.85, interval=0.2, zona="MITAD_DERECHA"
+            )
+            if pos_vip:
+                self.device.tap(pos_vip[0], pos_vip[1])
+                self.wait_for_screen_stable(timeout=6, interval=0.35)
                 self.clear_loot_windows()
                 self.cerrar_ventana()
                 return True
 
-        pos_ch = self.wait_for_template("templates/btn_challenge_boss_2.png", timeout=6, threshold=0.85)
+        pos_ch = self.wait_for_template(
+            "templates/btn_challenge_boss_2.png", timeout=5, threshold=0.85, interval=0.2, zona="MITAD_DERECHA"
+        )
         if not pos_ch:
             self.cerrar_ventana()
             self.return_to_home()
@@ -503,28 +536,40 @@ class DailyMissions(BaseTask):
         log.info("Módulo: Arena (5 batallas)")
         screen = self.device.screenshot()
 
-        resultado = self.vision.find_any(screen, ["templates/arena.png", "templates/btn_arena.png"], threshold=0.85)
+        # En el mapa de guerra (Captura 5), Arena está en ESQUINA_INF_DER
+        resultado = self.vision.find_any(
+            screen, ["templates/arena.png", "templates/btn_arena.png"],
+            threshold=0.85, zona="ESQUINA_INF_DER"
+        )
         pos_arena = (resultado[1], resultado[2]) if resultado else None
 
         if not pos_arena:
-            pos_warfare = self.vision.find_template(screen, "templates/btn_battalion_warfare.png", threshold=0.85)
+            pos_warfare = self.vision.find_template(
+                screen, "templates/btn_battalion_warfare.png", threshold=0.85, zona="MITAD_DERECHA"
+            )
             if pos_warfare:
                 self.device.tap(pos_warfare[0], pos_warfare[1])
-                self.wait_for_screen_stable(timeout=5, interval=0.5)
-                resultado = self.vision.find_any(self.device.screenshot(),
-                                                 ["templates/arena.png", "templates/btn_arena.png"], threshold=0.85)
+                self.wait_for_screen_stable(timeout=4, interval=0.35)
+                resultado = self.vision.find_any(
+                    self.device.screenshot(),
+                    ["templates/arena.png", "templates/btn_arena.png"],
+                    threshold=0.85, zona="ESQUINA_INF_DER"
+                )
                 pos_arena = (resultado[1], resultado[2]) if resultado else None
 
         if not pos_arena:
             return False
 
         self.device.tap(pos_arena[0], pos_arena[1])
-        self.wait_for_screen_stable(timeout=4, interval=0.5)
+        self.wait_for_screen_stable(timeout=4, interval=0.35)
 
+        screen_arenas = self.device.screenshot()
         arenas = []
-        for template in ["templates/btn_arena.png", "templates/arena_top1.png", "templates/arena_top2.png",
-                         "templates/arena_top3.png", "templates/arena_top4.png", "templates/arena_top5.png"]:
-            arenas.extend(self.vision.find_all_templates(self.device.screenshot(), template, threshold=0.85))
+        for template in [
+            "templates/btn_arena.png", "templates/arena_top1.png", "templates/arena_top2.png",
+            "templates/arena_top3.png", "templates/arena_top4.png", "templates/arena_top5.png"
+        ]:
+            arenas.extend(self.vision.find_all_templates(screen_arenas, template, threshold=0.85, zona="CENTRO"))
 
         if not arenas:
             self.cerrar_ventana()
@@ -532,66 +577,145 @@ class DailyMissions(BaseTask):
 
         arenas.sort(key=lambda p: p[0])
         self.device.tap(int(arenas[0][0]), int(arenas[0][1] + 190))
-        self.wait_for_screen_stable(timeout=4, interval=0.5)
+        self.wait_for_screen_stable(timeout=4, interval=0.35)
 
         batallas_exitosas = batallas_fallidas = 0
+        COOLDOWN_SERVIDOR = 10.0
 
         for i in range(5):
             log.info("Combate %d/5...", i + 1)
             reintentos = 0
             combate_ok = False
+            t_click_challenge = 0.0
 
             while reintentos < 3:
-                oponentes = self.vision.find_all_templates(self.device.screenshot(), "templates/challenge_area.png",
-                                                           threshold=0.85)
+                oponentes = self.vision.find_all_templates(
+                    self.device.screenshot(), "templates/challenge_area.png",
+                    threshold=0.85, zona="MITAD_DERECHA"
+                )
                 if not oponentes:
                     break
 
                 oponentes.sort(key=lambda p: p[1])
+                t_click_challenge = time.monotonic()
                 self.device.tap(oponentes[0][0], oponentes[0][1])
 
                 resultado_batalla = self.handle_battle_sequence()
                 if resultado_batalla == "draw":
                     reintentos += 1
-                    time.sleep(1.5)
+                    time.sleep(1.0)
                 else:
                     combate_ok = True
                     break
 
             if combate_ok:
                 batallas_exitosas += 1
-                log.info("  ✓ Combate %d completado. Esperando enfriamiento del servidor (10s)...", i + 1)
-                time.sleep(5)
+                if i < 4:
+                    transcurrido = time.monotonic() - t_click_challenge
+                    restante = max(0.5, COOLDOWN_SERVIDOR - transcurrido)
+                    log.info("  ✓ Combate %d listo en %.1fs. Esperando %.1fs restantes de cooldown...",
+                             i + 1, transcurrido, restante)
+                    time.sleep(restante + 1)
             else:
                 batallas_fallidas += 1
-                time.sleep(2)
+                time.sleep(1.0)
 
         self.cerrar_ventana()
         return batallas_exitosas >= 4
 
+    def do_champions_arena(self, batallas: int = 10) -> bool:
+        log.info("Módulo: Arena de Campeones (%d batallas)", batallas)
+
+        # 1. Entrar desde Home (Coliseo)
+        pos_arena_home = self.wait_for_template(
+            "templates/btn_arena_home.png", timeout=5, threshold=0.80, zona="MITAD_IZQUIERDA"
+        )
+        if not pos_arena_home:
+            return False
+        self.device.tap(pos_arena_home[0], pos_arena_home[1])
+        self.wait_for_screen_stable(timeout=4, interval=0.35)
+
+        # 2. Seleccionar Arena de Campeones leyendo SOLO la mitad derecha
+        # (Usa btn_champions_arena.png si tienes captura propia, o el banner de arena en MITAD_DERECHA)
+        screen = self.device.screenshot()
+        pos_champ = (
+                self.vision.find_template(screen, "templates/btn_champions_arena.png", threshold=0.80,
+                                          zona="MITAD_DERECHA")
+                or self.vision.find_template(screen, "templates/btn_arena_select.png", threshold=0.75,
+                                             zona="MITAD_DERECHA")
+        )
+        if pos_champ:
+            self.device.tap(pos_champ[0], pos_champ[1])
+        else:
+            # Fallback proporcional en la tarjeta derecha del menú de Coliseo
+            h, w = screen.shape[:2]
+            self.device.tap(int(w * 0.72), int(h * 0.52))
+        self.wait_for_screen_stable(timeout=5, interval=0.35)
+
+        # 3. Ejecutar los 10 ataques
+        completados = 0
+        for i in range(batallas):
+            t_inicio = time.monotonic()
+            log.info("Ataque Campeones %d/%d...", i + 1, batallas)
+
+            pos_challenge = self.wait_for_template(
+                "templates/btn_arena_challenge.png", timeout=6, threshold=0.80, zona="MITAD_DERECHA"
+            )
+            if not pos_challenge:
+                log.warning("No se encontró botón de desafío en ataque %d.", i + 1)
+                break
+
+            self.device.tap(pos_challenge[0], pos_challenge[1])
+            time.sleep(1.2)
+
+            # Confirmar oponente en la lista derecha
+            pos_fight = self.wait_for_template(
+                "templates/btn_arena_fight.png", timeout=5, threshold=0.80, zona="MITAD_DERECHA"
+            )
+            if pos_fight:
+                self.device.tap(pos_fight[0], pos_fight[1])
+
+            if self.handle_battle_sequence() != "timeout":
+                completados += 1
+
+            # Cooldown dinámico entre ataques
+            if i < batallas - 1:
+                restante = max(0.5, 11.0 - (time.monotonic() - t_inicio))
+                time.sleep(restante)
+
+        self.return_to_home()
+        return completados > 0
+
     def do_summons(self) -> bool:
         log.info("🌟 Módulo: Invocaciones")
 
-        pos_nav = self.vision.find_template(self.device.screenshot(), "templates/btn_summon_nav.png", threshold=0.85)
-        if not pos_nav: return False
+        pos_nav = self.vision.find_template(
+            self.device.screenshot(), "templates/btn_summon_nav.png",
+            threshold=0.85, zona="MITAD_INFERIOR"
+        )
+        if not pos_nav:
+            return False
 
         self.device.tap(pos_nav[0], pos_nav[1])
-        self.wait_for_screen_stable(timeout=6, interval=0.5)
+        self.wait_for_screen_stable(timeout=6, interval=0.35)
 
+        # ═══ FIX: Búsqueda simultánea x1/x10 free en MITAD_INFERIOR ═══
         encontrado, intentos_banner = False, 0
+        free_templates = ["templates/btn_summon_x1_free.png", "templates/btn_summon_x10_free.png"]
+
         while not encontrado and intentos_banner < 3:
-            result = self.vision.wait_for_template(self.device.screenshot, "templates/btn_summon_x1_free.png",
-                                                   timeout=2, threshold=0.7, interval=0.2) or \
-                     self.vision.wait_for_template(self.device.screenshot, "templates/btn_summon_x10_free.png",
-                                                   timeout=2, threshold=0.7, interval=0.2)
+            screen_sum = self.device.screenshot()
+            result = self.vision.find_any(screen_sum, free_templates, threshold=0.7, zona="MITAD_INFERIOR")
             if result:
                 encontrado = True
             else:
-                pos_arrow = self.vision.find_template(self.device.screenshot(), "templates/btn_summon_arrow_left.png",
-                                                      threshold=0.85)
+                pos_arrow = self.vision.find_template(
+                    screen_sum, "templates/btn_summon_arrow_left.png",
+                    threshold=0.85, zona="MITAD_IZQUIERDA"
+                )
                 if pos_arrow:
                     self.device.tap(pos_arrow[0], pos_arrow[1])
-                    time.sleep(1.5)
+                    time.sleep(0.9)
                     intentos_banner += 1
                 else:
                     break
@@ -602,18 +726,23 @@ class DailyMissions(BaseTask):
             self.limpiar_banners_home()
             return True
 
-        pos_chest = self.wait_for_template("templates/btn_friend_chest.png", timeout=3, threshold=0.8, interval=0.5)
+        pos_chest = self.vision.find_template(
+            self.device.screenshot(), "templates/btn_friend_chest.png",
+            threshold=0.8, zona="MITAD_INFERIOR"
+        )
         if pos_chest:
             self.device.tap(pos_chest[0], pos_chest[1])
-            self.wait_for_screen_stable(timeout=4, interval=0.5)
+            self.wait_for_screen_stable(timeout=4, interval=0.35)
             self.clear_loot_windows()
 
         invocaciones_hechas = 0
-        for template in ["templates/btn_summon_x1_free.png", "templates/btn_summon_x10_free.png"]:
-            pos_btn = self.wait_for_template(template, timeout=2, threshold=0.7, interval=0.5)
+        for template in free_templates:
+            pos_btn = self.vision.find_template(
+                self.device.screenshot(), template, threshold=0.7, zona="MITAD_INFERIOR"
+            )
             if pos_btn:
                 self.device.tap(pos_btn[0], pos_btn[1])
-                time.sleep(1)
+                time.sleep(0.6)
                 pos_confirm = self.wait_for_template("templates/btn_confirm_summon.png", timeout=3, threshold=0.8)
                 if pos_confirm:
                     self.device.tap(pos_confirm[0], pos_confirm[1])
@@ -678,16 +807,16 @@ class DailyMissions(BaseTask):
 
             sweeps_en_este_evento = 0
             while sweeps_en_este_evento < 3:
-                pos_sweep = self.vision.find_template(self.device.screenshot(), "templates/btn_sweep.png",
-                                                      threshold=0.85)
-                if not pos_sweep: break
+                pos_sweep = self.wait_for_template("templates/btn_sweep.png", timeout=3, threshold=0.85, interval=0.25)
+                if not pos_sweep:
+                    break
 
                 self.device.tap(pos_sweep[0], pos_sweep[1])
-                time.sleep(1.5)
+                time.sleep(1.2)
 
-                if self.check_and_recover_mana(): continue
+                if self.check_and_recover_mana():
+                    continue
 
-                time.sleep(1.5)
                 self.clear_loot_windows()
                 sweeps_en_este_evento += 1
 
