@@ -28,4 +28,5 @@ Thumbs.db
 .env
 src/logs/
 src/debug_roi_*.png
+src/Filesmodified
 
