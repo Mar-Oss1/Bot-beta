@@ -22,9 +22,10 @@ Thumbs.db
 # Logs y bases de datos
 *.log
 *.sqlite3
+*.json
+*.jsonl
 
 .env
 src/logs/
 src/debug_roi_*.png
 
-*.json
