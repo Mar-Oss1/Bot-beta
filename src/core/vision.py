@@ -20,9 +20,6 @@ class Vision:
         self.threshold = threshold
         self._template_cache: dict[str, tuple[np.ndarray, tuple[int, int]]] = {}
 
-    # ──────────────────────────────────────────
-    # CACHEO DE TEMPLATES
-    # ──────────────────────────────────────────
     def _load_template(self, template_path: str) -> tuple[np.ndarray, tuple[int, int]] | None:
         if template_path in self._template_cache:
             return self._template_cache[template_path]
@@ -59,9 +56,6 @@ class Vision:
     def clear_cache(self):
         self._template_cache.clear()
 
-    # ──────────────────────────────────────────
-    # CONVERSIÓN Y RECORTE INTELIGENTE (SLICING)
-    # ──────────────────────────────────────────
     @staticmethod
     def to_gray(image) -> np.ndarray:
         if isinstance(image, np.ndarray):
@@ -99,9 +93,6 @@ class Vision:
         y1, y2, x1, x2 = zonas_calc[zona]
         return screen_gray[y1:y2, x1:x2], x1, y1
 
-    # ──────────────────────────────────────────
-    # BÚSQUEDA DE TEMPLATES (CON FALLBACK)
-    # ──────────────────────────────────────────
     def find_template(
             self,
             screenshot,

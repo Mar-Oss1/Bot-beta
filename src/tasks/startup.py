@@ -23,7 +23,6 @@ class Startup:
                 time.sleep(0.6)
                 continue
 
-            # Buscar claim, X, login o título sobre la MISMA captura
             result = self.vision.find_any(screen, [
                 "templates/btn_claim.png",
                 "templates/btn_cerrar_x.png",
@@ -60,8 +59,7 @@ class Startup:
             ], threshold=0.8, zona="MITAD_INFERIOR")
 
             if en_home:
-                # Verificación rápida (0.6s en vez de 2.5s) por si salta un banner tardío
-                time.sleep(0.6)
+                time.sleep(0.8)
                 screen_check = self.device.screenshot()
                 popup_tardio = self.vision.find_any(screen_check, [
                     "templates/btn_cerrar_x.png",

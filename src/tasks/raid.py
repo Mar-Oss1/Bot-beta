@@ -19,11 +19,6 @@ MONSTER_TYPES = {
     "blue": {"template": "templates/raid_monster_blue.png", "priority": 5, "resource": "Minerals", "name": "Azul"},
 }
 
-# Dimensiones dinámicas de la caja OCR para el poder
-POWER_HALF_W_LEFT = 60
-POWER_HALF_W_RIGHT = 150
-POWER_HALF_H = 25
-
 _RE_NUM = re.compile(r"[\d.]+")
 _RE_CLEAN = re.compile(r"[^\d.,KMkm]")
 
@@ -87,9 +82,6 @@ class Raid(BaseTask):
         return mejor_tipo, mejor_conf
 
     def _obtener_slots_escalados(self, h: int, w: int) -> list[dict]:
-        """
-        Calcula las 5 filas en porcentaje respecto a la pantalla.
-        """
         ratios_y = [0.235, 0.375, 0.510, 0.648, 0.785]
         slots = []
         for idx, ry in enumerate(ratios_y):
@@ -98,7 +90,6 @@ class Raid(BaseTask):
                 "index": idx,
                 "y": cy,
                 "icon_box": (int(w * 0.415), int(cy - h * 0.065), int(w * 0.478), int(cy + h * 0.065)),
-                # Subido para abrazar los dígitos completos sin cortarlos por arriba
                 "power_box": (int(w * 0.480), int(cy - h * 0.022), int(w * 0.610), int(cy + h * 0.032)),
                 "enter_x": int(w * 0.735)
             })
@@ -108,8 +99,6 @@ class Raid(BaseTask):
         screen_gray = self.vision.to_gray(self.device.screenshot())
         orig_h, orig_w = screen_gray.shape[:2]
 
-        # Si la imagen de prueba viene comprimida (ej. WhatsApp 1600x720),
-        # la escalamos a 2400x1080 para que coincida con el tamaño de tus templates
         scale_x, scale_y = 1.0, 1.0
         if orig_w != 2400 or orig_h != 1080:
             scale_x = orig_w / 2400.0
@@ -135,7 +124,6 @@ class Raid(BaseTask):
             log.error("No se detectaron monstruos válidos")
             return []
 
-        # OCR Selectivo: solo leemos poder de los monstruos de la mejor prioridad encontrada
         mejor_prio = min(m["priority"] for m in pre_candidatos)
         finalistas = [m for m in pre_candidatos if m["priority"] == mejor_prio]
 
@@ -143,19 +131,20 @@ class Raid(BaseTask):
         for m in finalistas:
             px1, py1, px2, py2 = m["power_box"]
             poder = self._leer_poder(screen_gray, px1, py1, px2, py2)
-            if poder == 0 and len(finalistas) == 1:
-                poder = 1
-            if poder > 0:
-                monstruos.append({
-                    "index": m["index"],
-                    "tipo": m["tipo"],
-                    "priority": m["priority"],
-                    "power": poder,
-                    "y": int(m["y"] * scale_y),
-                    "enter_x": int(m["enter_x"] * scale_x)
-                })
-                log.info("  🔢 Poder leído Slot %d (%s): %d",
-                         m["index"] + 1, MONSTER_TYPES[m["tipo"]]["name"], poder)
+            if poder == 0:
+                poder = 1000 + m["index"] * 500
+                log.warning("  ⚠️ Slot %d: OCR falló. Fallback relativo: %d", m["index"] + 1, poder)
+
+            monstruos.append({
+                "index": m["index"],
+                "tipo": m["tipo"],
+                "priority": m["priority"],
+                "power": poder,
+                "y": int(m["y"] * scale_y),
+                "enter_x": int(m["enter_x"] * scale_x)
+            })
+            log.info("  🔢 Poder leído Slot %d (%s): %d",
+                     m["index"] + 1, MONSTER_TYPES[m["tipo"]]["name"], poder)
 
         return sorted(monstruos, key=lambda m: (m["priority"], -m["power"]))
 
@@ -248,7 +237,6 @@ class Raid(BaseTask):
         while time.monotonic() - inicio < timeout:
             screen = self.device.screenshot()
 
-            # 1. Buscar Skip rápido en esquina
             pos_skip = self.vision.find_template(
                 screen, "templates/btn_battle_skip.png", threshold=0.80, zona="ESQUINA_SUP_DER"
             )
@@ -262,7 +250,6 @@ class Raid(BaseTask):
                     self.device.tap(pos_ok[0], pos_ok[1])
                 continue
 
-            # 2. Buscar Victoria / Derrota en el centro
             result = self.vision.find_any(
                 screen,
                 ["templates/victory_banner.png", "templates/defeat_banner.png"],
@@ -290,11 +277,13 @@ class Raid(BaseTask):
         self.clear_loot_windows()
 
     def _volver_a_lista(self):
+        log.info("  [↩] Regresando a la lista de monstruos...")
         self.cerrar_ventana()
         inicio = time.monotonic()
         templates_monstruos = [cfg["template"] for cfg in MONSTER_TYPES.values()]
         while time.monotonic() - inicio < 6:
-            if self.vision.find_any(self.device.screenshot(), templates_monstruos, threshold=0.65, zona="LISTA_RAIDS"):
+            if self.vision.find_any(self.device.screenshot(), templates_monstruos, threshold=0.60, zona="LISTA_RAIDS"):
+                time.sleep(0.3)
                 return
             time.sleep(0.25)
 
@@ -306,21 +295,43 @@ class Raid(BaseTask):
 
         if not self._entrar_raid():
             return False
-        time.sleep(0.8)
-        monstruos = self._analizar_monstruos()
 
-        if not monstruos:
+        self.wait_for_screen_stable(timeout=4, interval=0.3)
+        monstruos_ordenados = self._analizar_monstruos()
+
+        if not monstruos_ordenados:
             return False
 
-        # Preparamos el plan de 3 batallas repitiendo el mejor monstruo encontrado
-        plan = [monstruos[0]] * 3
+        # CONSTRUCCIÓN DEL PLAN ESTRATÉGICO DE 3 ATAQUES:
+        mejor_prio = monstruos_ordenados[0]["priority"]
+        candidatos_top = [m for m in monstruos_ordenados if m["priority"] == mejor_prio]
+
+        if len(candidatos_top) >= 3:
+            # 3 o más del mejor tipo -> 1 ataque a cada uno de los 3 mayores
+            plan = [candidatos_top[0], candidatos_top[1], candidatos_top[2]]
+            log.info("🎯 Estrategia: 3 de tipo %s -> 1 ataque a cada uno (Slots %d, %d, %d)",
+                     MONSTER_TYPES[candidatos_top[0]["tipo"]]["name"],
+                     candidatos_top[0]["index"] + 1, candidatos_top[1]["index"] + 1, candidatos_top[2]["index"] + 1)
+        elif len(candidatos_top) == 2:
+            # 2 del mejor tipo -> 2 ataques al de mayor poder y 1 al segundo
+            plan = [candidatos_top[0], candidatos_top[0], candidatos_top[1]]
+            log.info("🎯 Estrategia: 2 de tipo %s -> 2 ataques al mayor (Slot %d) y 1 al menor (Slot %d)",
+                     MONSTER_TYPES[candidatos_top[0]["tipo"]]["name"],
+                     candidatos_top[0]["index"] + 1, candidatos_top[1]["index"] + 1)
+        else:
+            # Solo 1 de ese tipo -> 3 ataques al mismo
+            plan = [candidatos_top[0]] * 3
+            log.info("🎯 Estrategia: 1 único %s -> 3 ataques al Slot %d",
+                     MONSTER_TYPES[candidatos_top[0]["tipo"]]["name"], candidatos_top[0]["index"] + 1)
 
         for i, monstruo in enumerate(plan):
-            log.info("  Batalla %d/%d -> %s (Poder: %d)",
-                     i + 1, len(plan), MONSTER_TYPES[monstruo["tipo"]]["name"], monstruo["power"])
+            log.info("  Batalla %d/3 -> Slot %d: %s (Poder: %d)",
+                     i + 1, monstruo["index"] + 1, MONSTER_TYPES[monstruo["tipo"]]["name"], monstruo["power"])
 
-            if i > 0:
-                # Si es la 2da o 3ra batalla contra el mismo tipo, buscamos si salió "Create" directo
+            # FIX CLAVE: Solo intentamos reutilizar la sala actual si el objetivo es exactamente el MISMO slot anterior
+            mismo_slot_anterior = (i > 0 and monstruo["index"] == plan[i - 1]["index"])
+
+            if mismo_slot_anterior:
                 if not self.wait_for_template("templates/btn_siege_create.png", timeout=3.5, threshold=0.80, interval=0.2, zona="MITAD_DERECHA"):
                     self._volver_a_lista()
                     self.device.tap(monstruo["enter_x"], monstruo["y"])
@@ -329,6 +340,9 @@ class Raid(BaseTask):
                         self._volver_a_lista()
                         continue
             else:
+                # Si es la 1ra batalla o cambiamos a otro monstruo distinto, salimos a la lista primero
+                if i > 0:
+                    self._volver_a_lista()
                 self.device.tap(monstruo["enter_x"], monstruo["y"])
                 if not self.wait_for_template("templates/btn_siege_create.png", timeout=10, threshold=0.80, interval=0.25, zona="MITAD_DERECHA"):
                     self.cerrar_ventana()

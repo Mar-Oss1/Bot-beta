@@ -4,64 +4,81 @@ from tasks.event_farm import EventFarm
 
 log = get_logger("event_sweep")
 
+HOME_EXCLUSIVE_TEMPLATES = [
+    "templates/btn_battalion_warfare.png"
+]
 
 class EventSweep(EventFarm):
     def __init__(self, device, vision, account=None, db=None):
         super().__init__(device, vision, account, db)
 
-    def _volver_a_home_eventos(self):
-        """Regresa al Home deteniéndose apenas ve los banners de evento o el botón Summon."""
-        for _ in range(4):
-            screen_gray = self.vision.to_gray(self.device.screenshot())
-            if self.vision.find_template(
-                screen_gray, "templates/label_ends_in.png", threshold=0.75, zona="MITAD_DERECHA"
-            ) or self.vision.find_template(
-                screen_gray, "templates/btn_summon_nav.png", threshold=0.85, zona="ESQUINA_INF_DER"
-            ):
-                return
-            self.cerrar_ventana(screen=screen_gray)
-            time.sleep(0.5)
+    def _estamos_en_lobby_real(self, screen) -> bool:
+        return self.vision.find_any(screen, HOME_EXCLUSIVE_TEMPLATES, threshold=0.80, zona="COMPLETA") is not None
+
+    def _forzar_home(self, max_toques: int = 2) -> None:
+        for toque in range(max_toques):
+            screen = self.device.screenshot()
+            if toque > 0 and self._estamos_en_lobby_real(screen):
+                break
+
+            pos = self.vision.find_template(
+                screen, "templates/btn_home_nav.png", threshold=0.82, zona="ESQUINA_INF_DER"
+            )
+            if not pos:
+                break
+
+            log.info("  [🏠] Tocando botón Home (toque %d/%d)...", toque + 1, max_toques)
+            self.device.tap(pos[0], pos[1])
+            self.wait_for_screen_stable(timeout=4, interval=0.35)
+
+        self.limpiar_banners_home()
+
+    def _scannear_eventos(self) -> list:
+        """Todos los banners 'Ends in' visibles en el Home, ordenados de arriba a abajo."""
+        screen_gray = self.vision.to_gray(self.device.screenshot())
+        eventos = self.vision.find_all_templates(
+            screen_gray, "templates/label_ends_in.png", threshold=0.75, zona="MITAD_DERECHA"
+        ) or []
+        eventos.sort(key=lambda p: p[1])
+        return eventos
 
     def execute(self) -> bool:
-        log.info("\n" + "=" * 60)
-        log.info("Módulo: Farmeo de Eventos (Historia y Batallas)")
         log.info("=" * 60)
-        time.sleep(0.8)
+        log.info("Módulo: Farmeo de Eventos (Sweep Completo)")
+        log.info("=" * 60)
 
-        eventos_procesados = 0
-        MAX_EVENTOS = 2
-        posiciones_visitadas = []
+        # 1) Garantizar que arrancamos desde el Lobby real
+        self._forzar_home()
 
-        while eventos_procesados < MAX_EVENTOS:
-            screen = self.device.screenshot()
-            # En 1000817284.png todos los eventos están en MITAD_DERECHA
-            eventos_actuales = self.vision.find_all_templates(
-                screen, "templates/label_ends_in.png", threshold=0.75, zona="MITAD_DERECHA"
-            )
+        # 2) Escanear cuántos eventos hay disponibles
+        eventos_iniciales = self._scannear_eventos()
+        total_eventos = len(eventos_iniciales)
+        if total_eventos == 0:
+            log.info("[✅] Sin banners de eventos visibles en el Home.")
+            return True
 
-            if not eventos_actuales:
+        log.info("[📋] Eventos detectados en pantalla: %d", total_eventos)
+        procesados = 0
+
+        for idx in range(total_eventos):
+            # Re-escanear en vivo en el Lobby para evitar coordenadas desfasadas
+            actuales = self._scannear_eventos()
+            if idx >= len(actuales):
+                log.info("[>] No hay más banners en el índice #%d. Terminando.", idx + 1)
                 break
 
-            eventos_actuales.sort(key=lambda p: p[1])
-            pos_evento = next(
-                (ev for ev in eventos_actuales if all(abs(ev[1] - y_vis) >= 20 for y_vis in posiciones_visitadas)),
-                None
-            )
-
-            if not pos_evento:
-                log.info("[✅] Todos los eventos visibles ya fueron procesados.")
-                break
-
-            posiciones_visitadas.append(pos_evento[1])
-            eventos_procesados += 1
-
-            log.info("[>] Entrando al evento #%d (Y=%d)...", eventos_procesados, pos_evento[1])
-            self.device.tap(pos_evento[0], pos_evento[1])
+            pos = actuales[idx]
+            log.info("[>] Entrando al evento #%d/%d (Y=%d)...", idx + 1, total_eventos, pos[1])
+            self.device.tap(pos[0], pos[1])
             self.wait_for_screen_stable(timeout=5, interval=0.35, stability_threshold=0.95, min_stable_checks=2)
 
+            # 3) Farmear todas las etapas de historia/batalla de este evento
             super().execute()
 
-            log.info("  [🔙] Saliendo a la lista de eventos...")
-            self._volver_a_home_eventos()
+            # 4) Regreso forzoso al Home mediante el botón inferior derecho antes del siguiente banner
+            log.info("  [🔙] Saliendo del evento #%d hacia el Home...", idx + 1)
+            self._forzar_home()
+            procesados += 1
 
-        return True
+        log.info("[🏁] Sweep terminado: %d/%d eventos procesados.", procesados, total_eventos)
+        return procesados > 0
