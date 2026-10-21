@@ -28,3 +28,7 @@ src/logs/
 src/debug_roi_*.png
 
 *.json
+
+# Datos privados de cuentas (no versionar)
+accounts/
+src/accounts/

@@ -1,9 +1,11 @@
 import json
 import os
 from datetime import datetime, date
+from core.config import PROJECT_ROOT
 
-ACCOUNTS_FILE = "accounts/accounts.json"
-PROGRESS_FILE = "accounts/progress.json"
+ACCOUNTS_DIR = os.path.join(PROJECT_ROOT, "accounts")
+ACCOUNTS_FILE = os.path.join(ACCOUNTS_DIR, "accounts.json")
+PROGRESS_FILE = os.path.join(ACCOUNTS_DIR, "progress.json")
 
 
 class Account:
